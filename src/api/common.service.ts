@@ -16,16 +16,12 @@ export default class CommonService {
         return this.httpModule.post('/updtemplate', payload)
     }
 
-    getDetailed() {
-        return this.httpModule.get('http://localhost:3000/detail')
-    }
-
     getAdsData(payload: string) {
         return this.httpModule.post('/adsdata', Object.assign({ adgroupids: payload }));
     }
 
     getTypes() {
-        return this.httpModule.get('http://localhost:3000/tempAndTypes');
+        return this.httpModule.get('/template');
     }
 
     getRelations<T>(url: string, payload: RelationPostData) {

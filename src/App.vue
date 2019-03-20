@@ -124,8 +124,8 @@ body {
 #app .bottom {
   display: grid;
   grid-gap: 5px;
-  grid-auto-rows: 1fr;
-  grid-template-columns: 50% 1fr;
+  grid-auto-rows: minmax(100%, 100%);
+  grid-template-columns: 55% 1fr;
 }
 #app .top > div {
   max-height: 100%;

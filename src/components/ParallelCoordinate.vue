@@ -20,7 +20,7 @@
         :data="tableData"
         height="400px"
       >
-        <el-table-column prop="rank" label="Rank"></el-table-column>
+        <el-table-column prop="rank" label="Rank" v-if="mode === 'Global'"></el-table-column>
         <el-table-column prop="freq" label="Freq" v-if="mode === 'Global'"></el-table-column>
         <el-table-column
           v-for="(index, idx) in this.indexes.filter(index => index !== 'freq')"
@@ -163,8 +163,8 @@ export default class ParallelCoordinate extends Vue {
       let keys = Object.keys(d);
       keys.forEach(key => {
         if (key === "rank" || key === "cmbtargets") return;
-        let value = d[key];
-        if (!Number.isInteger(value)) {
+        let value: any = d[key];
+        if (!Number.isInteger(+value)) {
           if (key === "ctr") value = +value.toFixed(5);
           else value = +value.toFixed(3);
         }
@@ -176,6 +176,7 @@ export default class ParallelCoordinate extends Vue {
   @Watch("detailedLoaded")
   watchDetailedLoaded(nVal: any) {
     if (nVal === false) return;
+    this.preprocess(this.detailedData);
     this.mode = "Detail";
     this.renderChart();
   }

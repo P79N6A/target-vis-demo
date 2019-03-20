@@ -21,10 +21,9 @@ const namespaced: boolean = true;
 const actions: ActionTree<TypesState, RootState> = {
     async getTypesAction({ commit }) {
         commit('typesLoadedMutation', false);
-        // let result: any = await service.getTypes()
-        //     .then(res => res.data)
-        //     .then((res: any) => res.result);
-        commit('typesMutation', typeData);
+        let result: any = await service.getTypes()
+            .then(res => res.data);
+        commit('typesMutation', result.types);
         commit('typesLoadedMutation', true);
     }
 };

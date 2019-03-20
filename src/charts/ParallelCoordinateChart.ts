@@ -71,9 +71,7 @@ export default class ParallelCoordinateChart {
     loadData(data: CombinationData[], axises: any, mode: string, activeCmb: any, brushCmbs: any) {
         this.data = data;
         if (mode === 'Detail') {
-            let realAxies = axises.slice();
-            realAxies.splice(realAxies.indexOf('freq'), 1);
-            this.axises = realAxies
+            this.axises = ['cpc', 'click', 'cost', 'expo', 'ecpm', 'ctr']
         } else
             this.axises = axises;
         this.activeLine = activeCmb;
@@ -104,7 +102,6 @@ export default class ParallelCoordinateChart {
         this.buildAxis();
         this.lines = this.computeLine(this.data);
         this.paint(this.lines);
-        // }
         this.resolveState();
         this.zr.refresh();
     }
@@ -116,11 +113,11 @@ export default class ParallelCoordinateChart {
             let maxValue = values.reduce((prev: number, next: number) => Math.max(prev, next), -1);
             let minValue = values.reduce((prev: number, next: number) => Math.min(prev, next), Number.MAX_SAFE_INTEGER);
             let scale: any = null;
-            if (this.mode === 'Global' || ['ctr', 'cpc', 'ecpm'].indexOf(axis) !== -1)
+            if (this.mode === 'Global' || axis === 'ctr')
                 scale = d3.scaleLinear().domain([0, maxValue]).nice().rangeRound([this.cHeight, 0]);
             else {
                 if (minValue < 1) minValue = 1;
-                scale = d3.scaleLog().clamp(true).base(100).domain([minValue, maxValue]).nice().rangeRound([this.cHeight, 0]);
+                scale = d3.scaleLog().clamp(true).base(Math.E).domain([minValue, maxValue]).nice().rangeRound([this.cHeight, 0]);
             }
 
             this.yScales[axis] = scale;
@@ -162,7 +159,7 @@ export default class ParallelCoordinateChart {
             let x = this.axisScale(d);
             let group = new zrender.Group({ position: [x, 0], name: d });
             let axisLine = new zrender.Line({
-                z: 30,
+                z: 80,
                 name: 'axis-line',
                 shape: { x1: 0, y1: 0, x2: 0, y2: axisHeight },
                 style: { lineWidth: 2, fill: '#000', text: d[0].toUpperCase() + d.substring(1), textAlign: 'center', textPosition: [0, -30] }
@@ -217,7 +214,7 @@ export default class ParallelCoordinateChart {
             shape: { x: -10, y: 0, width: 20, height: this.cHeight },
             style: { fill: '#000', stroke: 'transparent', opacity: 0.1 },
             invisible: true,
-            z: 40
+            z: 100
         });
 
         extent.on('mouseover', () => {
@@ -237,7 +234,7 @@ export default class ParallelCoordinateChart {
             style: { fill: 'transparent', stroke: '#000', lineDash: [5, 5], lineWidth: 1 },
             name: 'selection-rect',
             cursor: 'move',
-            z: 50
+            z: 150
         });
 
         selectionRect.on('mousedown', (ev: any) => {
@@ -418,8 +415,8 @@ export default class ParallelCoordinateChart {
         lines.forEach((lineData: any) => {
             let line = new zrender.Polyline({
                 shape: { points: lineData.points },
-                style: { opacity: 1, stroke: '#c23531' },
-                z: 50
+                style: { opacity: this.detailLineOpacity, stroke: '#c23531' },
+                z: 30
             });
             this.brushHoverContainer.add(line);
         });
@@ -428,15 +425,28 @@ export default class ParallelCoordinateChart {
 
     buildTicks(d: string) {
         let format: any = null;
-        if (d !== 'ctr') format = d3.format("~s");
+        if (d !== 'ctr') format = d3.format(".0~s");
         else format = d3.format("~%");
-
         this.yFormats[d] = format;
-
+        let ticks = [];
         let scale = this.yScales[d];
-        let domain = scale.domain();
-        let ticks = scale.ticks(5);
-        if (ticks[ticks.length - 1] < domain[1]) ticks.push(domain[1]);
+        if (this.mode === 'Detail' && d !== 'ctr') {
+            let values = this.data.map((item: any) => item[d]).filter(item => item >= 1)
+                .sort((a, b) => a - b);
+            for (let i = 0; i <= 3; ++i) {
+                ticks.push(Math.round(d3.quantile(values, i * 0.25) as number));
+            }
+            let threshold = ticks[3] + (ticks[3] - ticks[1]) * 1.5;
+            ticks.push(threshold);
+        } else {
+
+            ticks = scale.ticks(5);
+
+        }
+                    let domain = scale.domain();
+                    if (ticks[ticks.length - 1] < domain[1]) ticks.push(domain[1]);
+
+
         let ticksGroup = new zrender.Group({ name: 'ticks' });
         if (ticks == null) return;
         ticks.forEach((t: any) => {
