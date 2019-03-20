@@ -3,7 +3,7 @@ import { ActionTree, MutationTree, GetterTree, Module } from 'vuex';
 import CommonService from '@/api/common.service';
 import { CombinationOp } from '@/models';
 import { TargetingInfo, CombinationData } from '@/models/targeting';
-import { getInitTargetingIds } from '@/utils/index'
+import { getInitTargetingIds, transformPostData } from '@/utils/index'
 
 let service = CommonService.getInstance();
 
@@ -31,15 +31,16 @@ const actions: ActionTree<CombinationState, RootState> = {
         commit("opPointerMutation", "");
         let ids: TargetingInfo[] = [];
         ids = getInitTargetingIds(rootGetters['template/template']);
+        let filter = transformPostData(rootGetters['globalFilter'], rootGetters['types/types']);
         // 开始发送请求
         let result: any = await service.getRelations('/calrelandcmbdata',
-            Object.assign({ ids: ids.map((item: any) => item.id), or: [], and: [], patterns: [], filter: {} }))
+            Object.assign({ ids: ids.map((item: any) => item.id), or: [], and: [], patterns: [], filter }))
             .then(res => res.data);
         commit('opLogsMutation',
             Object.assign({
                 type: 'Init', key: 'Init',
                 orAndStr: JSON.stringify({ and: [], or: [] }),
-                itemSize: 10, sorter: 'freq',
+                itemSize: 30, sorter: 'freq',
                 selectedCmb: null,
                 brushCmbs: null,
                 activeId: null,
@@ -49,13 +50,20 @@ const actions: ActionTree<CombinationState, RootState> = {
             }))
         commit('loadedMutation', true);
     },
-    async addState({ commit, getters }, payload: any) {
+    async addState({ commit, getters, rootGetters }, payload: any) {
         let ids = payload.ids;
         commit('loadedMutation', false);
+
+        let filter = transformPostData(rootGetters['globalFilter'], rootGetters['types/types']);
+        // 开始发送请求
         let result: any = await service.getRelations('/calrelandcmbdata',
-            Object.assign({ ids: ids.map((item: any) => item.id), or: [], and: [], patterns: [], filter: {} }))
-            .then(res => res.data)
-            .then(res => res);
+            Object.assign({ ids: ids.map((item: any) => item.id), or: [], and: [], patterns: [], filter }))
+            .then(res => res.data);
+
+        // let result: any = await service.getRelations('/calrelandcmbdata',
+        //     Object.assign({ ids: ids.map((item: any) => item.id), or: [], and: [], patterns: [], filter: {} }))
+        //     .then(res => res.data)
+        //     .then(res => res);
 
         // 此时新的状态获取成功
         commit('clearOpLogsMutation', getters['opPointer']);
@@ -65,7 +73,7 @@ const actions: ActionTree<CombinationState, RootState> = {
                 type: 'Drilldown', key: 'Drilldown-' + payload.clicked.name,
                 selectedCmb: null,
                 brushCmbs: null,
-                orAndStr: JSON.stringify({ and: [], or: [] }), sorter: 'freq', itemSize: 10, ids: ids, data: result.cmbs
+                orAndStr: JSON.stringify({ and: [], or: [] }), sorter: 'freq', itemSize: 30, ids: ids, data: result.cmbs
             }));
         commit('loadedMutation', true);
     },

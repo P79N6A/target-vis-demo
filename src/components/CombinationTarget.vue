@@ -1,7 +1,7 @@
 <template>
   <div
     :element-loading-text="loadingText"
-    v-loading="!templateLoaded || !loaded"
+    v-loading="!templateLoaded || !loaded "
     class="combination-target chart-container"
   >
     <div class="panel">
@@ -66,11 +66,20 @@
         </el-form>
         <el-button slot="reference" type="text">And | Or</el-button>
       </el-popover>
-      <span
-        :class="{ active: selectedCmb != null && detailedLoaded === true }"
-        @click="handleDetail"
-      >Switch to detail</span>
+      <span :class="{ active: selectedCmb != null  }" @click="handleDetail">Switch to detail</span>
       <span class="fill-space"></span>
+    </div>
+    <div v-show="titles" class="title-container">
+      <span
+        v-for="(title, index) in titles"
+        :key="index"
+        :style="{color: title.textFill, left: title.leftPos + 'px'}"
+      >{{title.content}}</span>
+      <!-- <span
+        v-for="(title,index) in ids"
+        :key="index"
+        :style="{transform: 'rotate(45)'}"
+      >{{title.name}}</span>-->
     </div>
     <div class="chart"></div>
   </div>
@@ -107,7 +116,7 @@ export default class CombinationTarget extends Vue {
 
   orAndStr: string = "";
 
-  map: object = {};
+  map: any = null;
   restore: boolean = false;
   and: string[] = [];
   or: string[] = [];
@@ -137,6 +146,7 @@ export default class CombinationTarget extends Vue {
   modeMutation(mode: string) {}
 
   lockForm: boolean = false;
+  titles: any = null;
 
   detailActivate: boolean = false;
 
@@ -289,7 +299,7 @@ export default class CombinationTarget extends Vue {
     Bus.$on("select-cmb", (message: any) => {
       this.selectedCmb = message;
     });
-    Bus.$on("drilldown", (message: any) => {
+    Bus.$on("drilldown-addState", (message: any) => {
       // 每次组合图下钻之前,应把之前的or and sorter等状态保存
       let newOp = Object.assign({}, this.currentOp, {
         orAndStr: this.orAndStr,
@@ -305,6 +315,9 @@ export default class CombinationTarget extends Vue {
         Object.assign({ opPointer: this.opPointer, op: newOp })
       );
       this.addState(message.drilldown);
+    });
+    Bus.$on("paint-titles", (message: any) => {
+      this.titles = message;
     });
     Bus.$on("change-op", (message: string) => {
       // this.cancelAnd();
@@ -339,12 +352,12 @@ export default class CombinationTarget extends Vue {
 
   initData(data: CombinationData[]) {
     if (data.length == 0) return;
-    let map = new Map<number, string[]>();
+    let map = new Map<string, string[]>();
     data.forEach((d, i) => {
-      if (d.index == null) d.index = i;
-      map.set(i, (d as any).adgroupids);
+      map.set(d.cmbtargets, (d as any).adgroupids);
       delete (d as any).adgroupids;
     });
+    this.map = map;
   }
 
   getDataByOrAnd(data: CombinationData[]) {
@@ -416,7 +429,11 @@ export default class CombinationTarget extends Vue {
   detailedLoaded!: boolean;
 
   handleDetail() {
-    Bus.$emit("get-detail");
+    let selectedCmb = this.selectedCmb;
+    if (selectedCmb == null) return;
+    let adgroupids = this.map.get((selectedCmb as any).cmbtargets);
+    console.log(adgroupids);
+    Bus.$emit("get-detail", adgroupids);
   }
 
   sortData(data: CombinationData[], condition: string) {
@@ -448,6 +465,20 @@ export default class CombinationTarget extends Vue {
 <style>
 .combination-target.chart-container .chart {
   overflow-y: scroll;
+}
+.combination-target.chart-container .title-container {
+  /* overflow: hidden; */
+  position: relative;
+  margin: 0 60px;
+  height: 80px;
+  font-size: 12px;
+}
+.combination-target.chart-container .title-container span {
+  position: absolute;
+  top: 65px;
+  min-width: 100px;
+  transform-origin: left;
+  transform: rotate(-45deg);
 }
 </style>
 

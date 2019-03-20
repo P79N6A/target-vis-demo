@@ -5,11 +5,12 @@
     :element-loading-text="loadingText"
   >
     <div class="panel">
-      <span class="view-name">Advertisers Portrait</span>
+      <span class="view-name">Indexes ({{mode === 'Global' ? 'Global' : 'Detail'}})</span>
       <el-dropdown trigger="click" @command="handleMenuClick">
         <el-button type="text">{{index}}</el-button>
         <el-dropdown-menu slot="dropdown">
           <el-dropdown-item command="Freq">Freq</el-dropdown-item>
+          <el-dropdown-item v-if="mode === 'Global'" command="Target-Freq">Target-Freq</el-dropdown-item>
           <el-dropdown-item command="Click">Click</el-dropdown-item>
           <el-dropdown-item command="Ctr">Ctr</el-dropdown-item>
           <el-dropdown-item command="Ecpm">Ecpm</el-dropdown-item>
@@ -28,10 +29,6 @@
         </el-dropdown-menu>
       </el-dropdown>
       <span class="fill-space"></span>
-      
-      <span :class="{'active': mode}" v-if="index === 'Freq'" @click="changeMode">
-        <svg-icon :iconName="'barchart'"></svg-icon>
-      </span>
     </div>
     <div class="chart"></div>
   </div>
@@ -68,12 +65,14 @@ export default class Portrait extends Vue {
   }
 
   type: string = "流量";
-  mode: boolean = true;
+  mode: string = "Global";
 
   // 用于接收关系图传来的被高亮的定向
   activeId: TargetingInfo | null = null;
   // 用于接收关系图传来的被过滤的定向
   filteredIds: TargetingInfo[] | null = null;
+
+  adgroupids: string = "";
 
   @Mutation("saveStateMutation", { namespace: "portrait" })
   saveStateMutation(payload: PortraitOp) {}
@@ -82,13 +81,14 @@ export default class Portrait extends Vue {
   opPointerMutation(payload: string) {}
 
   handleCoordinate() {
-    Bus.$on("drilldown", (message: any) => {
+    Bus.$on("drilldown-addState", (message: any) => {
       if (this.currentOp == null) return;
       let newOp = Object.assign({}, this.currentOp, {
         index: this.index,
         mode: this.mode,
         activeId: this.activeId,
-        filteredIds: this.filteredIds
+        filteredIds: this.filteredIds,
+        condition: this.condition
       });
       this.saveStateMutation(newOp);
       this.addState(message.drilldown);
@@ -102,10 +102,9 @@ export default class Portrait extends Vue {
       this.activeId = message;
       if (this.currentOp == null) return;
       this.chart.loadData(
-        this.currentOp.data,
-        this.currentOp.ids,
+        this.data,
+        this.ids,
         this.index,
-        this.mode,
         this.activeId,
         this.filteredIds
       );
@@ -117,10 +116,26 @@ export default class Portrait extends Vue {
         this.currentOp.data,
         this.currentOp.ids,
         this.index,
-        this.mode,
         this.activeId,
         this.filteredIds
       );
+    });
+    Bus.$on("get-detail", (message: string) => {
+      this.adgroupids = message;
+      this.changeState(
+        Object.assign({
+          condition: this.typeStr as string,
+          ids: this.ids,
+          adgroupids: this.adgroupids
+        })
+      );
+    });
+    Bus.$on("select-cmb", () => {
+      if (this.mode === "Detail") {
+        this.mode = "Global";
+        this.index = "Freq";
+        this.renderChart();
+      }
     });
   }
 
@@ -132,10 +147,16 @@ export default class Portrait extends Vue {
   @Action("changeState", { namespace: "portrait" })
   changeState(payload: string) {}
 
+  // 切换行业、产品类型、流量等
   handleTypeClick(command: string) {
     this.type = command;
+    this.condition = this.typeStr;
     this.changeState(
-      Object.assign({ condition: this.typeStr as string, ids: this.ids })
+      Object.assign({
+        condition: this.typeStr as string,
+        ids: this.ids
+        // adgroupids: this.adgroupids
+      })
     );
   }
 
@@ -144,73 +165,70 @@ export default class Portrait extends Vue {
   @Getter("opLogs", { namespace: "portrait" })
   opLogs!: PortraitOp[];
 
-  @Watch("opPointer")
-  watchOpPointer(nval: string) {
-    if (this.currentOp == null) return;
-    this.initFilter(this.currentOp);
-    this.chart.loadData(
-      this.currentOp.data,
-      this.currentOp.ids,
-      this.index,
-      this.mode,
-      this.activeId,
-      this.filteredIds
-    );
-  }
-
   @Watch("loaded")
   watchLoaded(nval: string) {
     if (this.currentOp == null) return;
-    this.chart.loadData(
-      this.currentOp.data,
-      this.currentOp.ids,
-      this.index,
-      this.mode,
-      this.activeId,
-      this.filteredIds
-    );
+    this.initState(this.currentOp);
+    this.renderChart();
+  }
+
+  @Watch("opPointer")
+  watchOpPointer(nVal: string) {
+    if (nVal === "") return;
+    if (this.currentOp == null) return;
+    this.initState(this.currentOp);
+    this.renderChart();
+  }
+
+  renderChart() {
+    if (this.mode === "Global")
+      this.chart.loadData(
+        this.data,
+        this.ids,
+        this.index,
+        this.activeId,
+        this.filteredIds
+      );
+    else
+      this.chart.loadData(
+        this.detailedData,
+        this.ids,
+        this.index,
+        this.activeId,
+        this.filteredIds
+      );
   }
 
   @Action("addState", { namespace: "portrait" })
   addState(payload: any) {}
 
-  changeMode() {
-    this.mode = !this.mode;
-    if (this.currentOp == null) return;
-    this.chart.loadData(
-      this.currentOp.data,
-      this.currentOp.ids,
-      this.index,
-      this.mode,
-      this.activeId,
-      this.filteredIds
-    );
-  }
-
   handleMenuClick(command: string) {
     if (this.currentOp == null) return;
-    this.index = command.replace(/^([a-z])/, ($1: string) => $1.toUpperCase());
-    if (this.index !== "freq") this.mode = false;
-    this.chart.loadData(
-      this.currentOp.data,
-      this.currentOp.ids,
-      command,
-      this.mode,
-      this.activeId,
-      this.filteredIds
-    );
+    this.index = command
+      .replace(/^([a-z])/, ($1: string) => $1.toUpperCase())
+      .replace(/-([a-z])/, ($1: string) => $1.toUpperCase());
+    this.renderChart();
   }
 
   index: string = "";
   data: any[] = [];
   ids: TargetingInfo[] = [];
+  condition: any = "";
+  detailedData: any = null;
 
-  initFilter(op: PortraitOp) {
-    this.index = op.index.replace(/^([a-z])/, ($1: string) => $1.toUpperCase());
+  initState(op: PortraitOp) {
+    // 当前视图所要展示的指标
+    this.index = op.index
+      .replace(/^([a-z])/, ($1: string) => $1.toUpperCase())
+      .replace(/-([a-z])/, $1 => $1.toUpperCase());
+    // 当前是否有需要高亮的定向
     this.activeId = op.activeId;
+    // 是否有被过滤的定向
     this.filteredIds = op.filteredIds;
     this.data = op.data;
     this.ids = op.ids;
+    this.condition = op.condition;
+    this.detailedData = op.detailedData;
     this.mode = op.mode;
   }
 

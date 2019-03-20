@@ -4,10 +4,10 @@
     <div class="top">
       <global-control-panel @open-dialog="showDialog = true"></global-control-panel>
       <hierarchy-chord></hierarchy-chord>
-      <portrait></portrait>
+      <combination-target></combination-target>
     </div>
     <div class="bottom">
-      <combination-target></combination-target>
+      <portrait></portrait>
       <parallel-coordinate></parallel-coordinate>
     </div>
   </div>
@@ -119,13 +119,13 @@ body {
   display: grid;
   grid-gap: 5px;
   grid-template-rows: minmax(100%, 100%);
-  grid-template-columns: 250px 1fr 50%;
+  grid-template-columns: 250px 1fr 45%;
 }
 #app .bottom {
   display: grid;
   grid-gap: 5px;
-  grid-auto-rows: minmax(100%, 100%);
-  grid-template-columns: 1fr 1fr;
+  grid-auto-rows: 1fr;
+  grid-template-columns: 50% 1fr;
 }
 #app .top > div {
   max-height: 100%;
@@ -160,9 +160,7 @@ body {
 .fill-space {
   flex: 1 1 auto;
 }
-div:-webkit-full-screen {
-  background: #fff;
-}
+
 .chart .tooltip {
   position: absolute;
   visibility: hidden;
@@ -198,15 +196,9 @@ div:-webkit-full-screen {
 .chart .tooltip p span {
   font-size: 10px;
 }
-.bottom-chart {
-  border-top-color: transparent;
-  grid-column: 1 / 4;
-  display: grid;
-  grid-gap: 5px;
-  grid-template-columns: repeat(2, 1fr);
-}
 
 .chart-container {
+  position: relative;
   border-top: 2px solid brown;
   box-shadow: 0 2px 2px #d2d2d2;
   display: flex;
@@ -219,7 +211,7 @@ div:-webkit-full-screen {
   top: 0;
   bottom: 0;
   right: 0;
-  z-index: 20;
+  z-index: 1000;
   background-color: #fff;
 }
 .chart-container .chart {

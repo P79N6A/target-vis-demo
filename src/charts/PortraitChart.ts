@@ -37,8 +37,8 @@ export default class PortraitChart {
     // 视图边距
     marginLeft: number = 50;
     marginRight: number = 50;
-    marginTop: number = 30;
-    marginBottom: number = 80;
+    marginTop: number = 10;
+    marginBottom: number = 120;
 
     // 视图模式
     mode: boolean = false;
@@ -55,10 +55,12 @@ export default class PortraitChart {
             "#f78fb3", "#ff4757", "#ff9f7f"]);
 
     // 比例尺
-    xScale: ScaleBand<string> = d3.scaleBand().paddingInner(0.05).paddingOuter(0.05);
-    brushXScale: ScaleBand<string> = d3.scaleBand().paddingInner(0.01).paddingOuter(0.1);
+    xScale: ScaleBand<string> = d3.scaleBand().paddingInner(0.2).paddingOuter(0.1);
+    brushXScale: ScaleBand<string> = d3.scaleBand().paddingInner(0.2).paddingOuter(0.1);
     yScale: ScaleLinear<number, number> = d3.scaleLinear();
     brushYScale: ScaleLinear<number, number> = d3.scaleLinear();
+
+    yFormats: any = {};
 
     initBrushWidth: number = 0;
 
@@ -89,7 +91,7 @@ export default class PortraitChart {
         this.cHeight = this.height - this.marginTop - this.marginBottom;
         this.cWidth = this.width - this.marginLeft - this.marginRight;
 
-        this.initBrushWidth = Math.round(this.cWidth * 0.3);
+        this.initBrushWidth = Math.round(this.cWidth * 1);
 
         this.xScale.rangeRound([0, this.cWidth]);
         this.brushXScale.rangeRound([0, this.cWidth]);
@@ -98,24 +100,25 @@ export default class PortraitChart {
         this.brushContainer.attr('position', [0, Math.round(this.cHeight) + this.marginBottom / 2]);
     }
 
-    loadData(data: any[], targets: TargetingInfo[], index: string, mode: boolean, activeId: null | TargetingInfo, filteredIds: TargetingInfo[] | null) {
+    loadData(data: any[], targets: TargetingInfo[], index: string, activeId: null | TargetingInfo, filteredIds: TargetingInfo[] | null) {
         this.data = data;
         this.data = this.data.filter((d: any) => d.pattern != null);
         this.targets = targets;
         this.activeId = activeId == null ? null : activeId.id;
         this.filteredIds = filteredIds == null ? [] : filteredIds;
-        this.mode = mode;
+
+        console.log(arguments);
+
         this.index = index.toLowerCase();
         this.data.sort((a: any, b: any) => b[this.index] - a[this.index]);
-        this.brushXScale.domain(data.map((d: any) => d.name));
+        this.brushXScale.domain(this.data.map((d: any) => d.name));
         this.buildBrushX("brush")
         this.update();
-
-        // this.getDomainExtent();
     }
 
     resolveState() {
-        if (this.index === 'freq' && this.mode === true && this.activeId != null)
+
+        if (this.index === 'target-freq' && this.activeId != null)
             this.highlight(this.activeId);
     }
 
@@ -138,9 +141,10 @@ export default class PortraitChart {
 
     processContext() {
         this.getMaxValue(this.brushXScale.domain(), this.brushYScale);
-        if (this.mode === false || this.index !== 'freq')
+        this.buildBrushAxis();
+        if (this.index !== 'target-freq')
             this.paintBar(this.data, this.brushXScale, this.brushYScale, 30, '#eceef0', this.brushContainer.childOfName('background'));
-        else if (this.mode === true && this.index === 'freq')
+        else if (this.index === 'target-freq')
             this.paintGroupBar(this.data, this.brushXScale, this.brushYScale, 30, '#eceef0', this.brushContainer.childOfName('background'));
     }
 
@@ -150,11 +154,41 @@ export default class PortraitChart {
         this.getMaxValue(this.xScale.domain(), this.yScale);
         this.buildHorizonAxis();
         this.buildVerticalAxis();
-        if (this.mode === false || this.index !== 'freq')
+        if (this.index !== 'target-freq')
             this.paintBar(this.data, this.xScale, this.yScale, this.cHeight, '#c23531', this.chartContainer);
-        else if (this.mode === true && this.index === 'freq')
+        else if (this.index === 'target-freq')
             this.paintGroupBar(this.data, this.xScale, this.yScale, this.cHeight, "", this.chartContainer);
         this.resolveState();
+    }
+
+    buildBrushAxis() {
+        let group = this.brushContainer.childOfName('brush-axis');
+        group.removeAll()
+        let axisLine = new zrender.Line({
+            shape: { x1: 0, y1: 0, x2: this.cWidth, y2: 0 },
+            style: { stroke: '#000' },
+            name: 'axis-line'
+        });
+        group.add(axisLine);
+        let ticksGroup = new zrender.Group({ name: 'ticks' });
+        group.add(ticksGroup);
+        let domain: string[] = this.brushXScale.domain();
+        domain.forEach(d => {
+            let posX = this.brushXScale(d) as number + this.brushXScale.bandwidth() / 2;
+            posX = Math.round(posX);
+            let tick = new zrender.Line({
+                name: d,
+                shape: { x1: posX, y1: 0, x2: posX, y2: 4 },
+                style: {
+                    stroke: '#000', text: d,
+                    truncate: {
+                        outerWidth: this.xScale.bandwidth() - 6
+                    },
+                    textAlign: 'center', textPosition: [0, 8]
+                }
+            });
+            ticksGroup.add(tick);
+        });
     }
 
     buildHorizonAxis() {
@@ -170,29 +204,31 @@ export default class PortraitChart {
             group.add(axisLine);
             this.axisContainer.add(group);
         }
-
-        let ticksGroup = group.childOfName('ticks');
-        if (ticksGroup == null) {
-            ticksGroup = new zrender.Group({ name: 'ticks' });
-            group.add(ticksGroup);
-        }
-        ticksGroup.removeAll();
-        let labels = this.xScale.domain();
-        labels.forEach(label => {
-            let posX = this.xScale(label) as number + this.xScale.bandwidth() / 2;
-            posX = Math.round(posX);
-            let tick = new zrender.Line({
-                shape: { x1: posX, y1: 0, x2: posX, y2: 4 },
-                style: {
-                    stroke: '#000', text: label,
-                    truncate: {
-                        outerWidth: this.xScale.bandwidth() - 6
-                    },
-                    textAlign: 'center', textPosition: [0, 8]
-                }
+        if (this.index !== 'target-freq') {
+            let ticksGroup = group.childOfName('ticks');
+            if (ticksGroup == null) {
+                ticksGroup = new zrender.Group({ name: 'ticks' });
+                group.add(ticksGroup);
+            }
+            ticksGroup.removeAll();
+            let labels = this.xScale.domain();
+            labels.forEach(label => {
+                let posX = this.xScale(label) as number + this.xScale.bandwidth() / 2;
+                posX = Math.round(posX);
+                let tick = new zrender.Line({
+                    shape: { x1: posX, y1: 0, x2: posX, y2: 4 },
+                    style: {
+                        stroke: '#000', text: label,
+                        truncate: {
+                            outerWidth: this.xScale.bandwidth() - 6
+                        },
+                        textAlign: 'center', textPosition: [0, 8]
+                    }
+                });
+                ticksGroup.add(tick);
             });
-            ticksGroup.add(tick);
-        });
+        }
+
     }
 
     buildVerticalAxis() {
@@ -216,7 +252,10 @@ export default class PortraitChart {
         let ticks = this.yScale.ticks(5);
         let domain = this.yScale.domain();
         if (domain[1] !== ticks[ticks.length - 1]) ticks.push(domain[1]);
-        let format = d3.format("~s");
+        let format: any = null;
+        if (this.index === 'ctr') format = d3.format("~%");
+        else format = d3.format("~s");
+        this.yFormats[this.index] = format;
         ticks.forEach((tick, index) => {
             let posY = this.yScale(tick);
             let t = new zrender.Line({
@@ -238,14 +277,14 @@ export default class PortraitChart {
     getMaxValue(domain: string[], scale: any) {
         let maxValue: number = -1;
         this.map.clear();
-        if (this.mode === false || this.index !== 'freq') {
+        if (this.index !== 'target-freq') {
             this.data.forEach((d: any) => {
                 let index = domain.indexOf(d.name);
                 if (index !== -1) this.map.set(d.name, d[this.index] == null ? 0 : d[this.index]);
             });
             let values = [...this.map.values()];
             maxValue = values.reduce((prev: number, next: number) => Math.max(prev, next), -1);
-        } else if (this.mode === true && this.index === 'freq') {
+        } else if (this.index === 'target-freq') {
             this.data.forEach((d: any) => {
                 let index = domain.indexOf(d.name);
                 if (index !== -1) this.map.set(d.name, d['pattern'] == null ? { all: 0 } : d['pattern']);
@@ -270,6 +309,13 @@ export default class PortraitChart {
             let pos = this.brushXScale(d) as number + bandwidth / 2;
             return pos >= prev && pos <= next;
         });
+
+        this.brushContainer.childOfName('brush-axis').childOfName('ticks')
+            .eachChild((child: any) => {
+                if (result.indexOf(child.name) !== -1) child.attr('style', { textFill: '#409eff' });
+                else child.attr('style', { textFill: '#000' });
+            })
+
         return result;
     }
     buildTooltip() {
@@ -312,7 +358,7 @@ export default class PortraitChart {
         let domain = xScale.domain();
         data = data.filter(d => domain.indexOf(d.name) !== -1);
         let realTargets = this.targets.filter(target => this.filteredIds.findIndex(item => item.id === target.id) === -1);
-        let width = Math.round(xScale.bandwidth() / realTargets.length);
+
         parentGroup.removeAll();
         data.forEach((d: any) => {
             let name = d.name;
@@ -321,8 +367,11 @@ export default class PortraitChart {
             let pattern = d.pattern;
             let keys = Object.keys(pattern);
             keys = keys.filter(key => this.filteredIds.findIndex(item => item.id === key) === -1);
+            keys.sort((a, b) => pattern[b] - pattern[a]);
+            let width = Math.round(xScale.bandwidth() / keys.length);
             for (let i = 0, j = keys.length; i < j; ++i) {
                 let color = fill === "" ? this.color(keys[i][0]) : fill;
+                let name = (this.targets.find(target => target.id === keys[i]) as any)['name'];
                 let value = yScale(pattern[keys[i]]);
                 let rect = new zrender.Rect({
                     shape: { x: i * width, y: value, width, height: height - value },
@@ -330,12 +379,20 @@ export default class PortraitChart {
                     rectId: keys[i],
                     z: 10
                 });
+                if (width >= 15 && parentGroup.name !== 'background')
+                    rect.attr('style', {
+                        fontSize: 12,
+                        textFill: '#000',
+                        truncate: {
+                            outerWidth: 65
+                        }, textPosition: [Math.round(width / 2), height - value + 5], text: name, textRotation: -Math.PI / 4
+                    });
                 group.add(rect);
             }
             if (parentGroup.name !== 'background') {
                 let backgroundBar = new zrender.Rect({
                     z: 15,
-                    shape: { x: 0, y: 0, width: xScale.step(), height: height },
+                    shape: { x: 0, y: 0, width: xScale.bandwidth(), height: height },
                     style: { fill: '#000', opacity: 0 },
                     name: 'background-rect',
                     groupName: name
@@ -362,6 +419,7 @@ export default class PortraitChart {
     paintBar(data: Datum[], xScale: ScaleBand<string>, yScale: ScaleLinear<number, number>, height: number, fill: string, parentGroup: any) {
         let domain = xScale.domain();
         data = data.filter((d: any) => domain.indexOf(d.name) !== -1);
+        console.log(data);
         // 矩形宽度
         let width = Math.round(xScale.bandwidth());
         let step = Math.round(xScale.step());
@@ -382,7 +440,7 @@ export default class PortraitChart {
             if (parentGroup.name !== 'background') {
                 let backgroundBar = new zrender.Rect({
                     z: 15,
-                    shape: { x: 0, y: 0, width: xScale.step(), height: height },
+                    shape: { x: 0, y: 0, width: xScale.bandwidth(), height: height },
                     style: { fill: '#000', opacity: 0 },
                     name: 'background-rect',
                     groupName: name
@@ -409,8 +467,13 @@ export default class PortraitChart {
     buildBrushX(groupName: string) {
         let parentGroup = this.container.childOfName(groupName);
         parentGroup.removeAll();
+
         let initSelectionHeight: number = 30;
         let initSelectionWidth: number = this.initBrushWidth;
+
+        let axisContainer = new zrender.Group({ name: 'brush-axis', position: [0, initSelectionHeight] });
+        parentGroup.add(axisContainer);
+
         let extent = new zrender.Rect({
             shape: { x: 0, y: 0, width: this.cWidth, height: initSelectionHeight },
             style: { fill: 'transparent', stroke: '#ededed' },
@@ -422,6 +485,7 @@ export default class PortraitChart {
             shape: { x: 0, y: 0, width: initSelectionWidth, height: initSelectionHeight },
             style: { fill: 'transparent', stroke: '#000', lineDash: [5] },
             name: 'selection-rect',
+            cursor: 'move',
             z: 25
         });
         let controlLeft = new zrender.Rect({

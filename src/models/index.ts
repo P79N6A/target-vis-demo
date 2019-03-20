@@ -58,12 +58,13 @@ export interface CombinationOp {
 
 export interface PortraitOp {
     key: string;
-    mode: boolean; // 视图是否展示至定向粒度
+    condition: string;
+    mode: string; // 全局或详情模式
     index: string; // 广告指标类型
     type: 'Drilldown' | 'Init';
-    message: string;
     activeId: TargetingInfo | null;
     filteredIds: TargetingInfo[] | null;
     ids: TargetingInfo[];
     data: CombinationData[];
+    detailedData: any;
 }

@@ -27,7 +27,7 @@ export default class HierarchyChordChart {
     filteredTargets: TargetingInfo[] = [];
 
     // 弦图布局计算器
-    chordGenerator: any = d3.chord().padAngle(0.05).sortSubgroups(d3.descending);
+    chordGenerator: any = d3.chord().padAngle(0.05).sortSubgroups(d3.descending)
     // 弦生成器
     ribbonGenerator: any = d3.ribbon()
 
@@ -64,7 +64,7 @@ export default class HierarchyChordChart {
     legendContainer: any = new zrender.Group();
 
     // 用于限制层级半径
-    radiusScale: any = d3.scaleOrdinal().domain(["2", "3", "4", "5"]).range([0, 30, 40, 50]);
+    radiusScale: any = d3.scaleOrdinal().domain(["2", "3", "4", "5"]).range([0, 40, 80, 120]);
 
     matrix: number[][] = [];
 
@@ -122,19 +122,16 @@ export default class HierarchyChordChart {
         this.computeArcWidth(this.targets);
 
         let chordData = this.chordGenerator(this.matrix);
-        chordData.groups.forEach((group: GroupDatum) => {
+        let groups = chordData.groups.map((group: GroupDatum) => {
             let result = this.map.get(group.index);
             if (result == null) return;
-            group.id = result.id;
-            group.name = result.name;
-            group.level = result.level;
-            group.freq = result.freq;
-            group.cost = result.cost;
-            group.startAngle = group.startAngle - Math.PI / 2;
-            group.endAngle = group.endAngle - Math.PI / 2;
+            let newGroup = Object.assign({}, group, result, {
+                startAngle: group.startAngle - Math.PI / 2,
+                endAngle: group.endAngle - Math.PI / 2
+            });
+            return newGroup;
         });
-
-        this.paint(chordData.groups, [...chordData], this.targets);
+        this.paint(groups, [...chordData], this.targets);
         // resolveState主要用于处理是否有高亮以及筛选行为
         this.resolveState();
         this.zr.refresh();
@@ -164,6 +161,7 @@ export default class HierarchyChordChart {
             return false;
         });
 
+        ids.sort((a: any, b: any) => b[this.index] - a[this.index]);
 
         const self: any = this;
         ids.forEach((id: TargetingInfo, row: number) => {
@@ -279,7 +277,7 @@ export default class HierarchyChordChart {
 
     paintLegend(legends: TargetingInfo[]) {
         this.legendContainer.removeAll();
-
+        legends.sort((a: any, b: any) => b[this.index] - a[this.index]);
         legends.forEach((d, i) => {
             let color = this.color(d.id[0]);
             let idx1 = this.data.findIndex(item => item.id === d.id);
@@ -479,7 +477,6 @@ export default class HierarchyChordChart {
                     .attr('active', false);
             }
         }
-        console.log(this.activeId, this.selectedCmb);
         if (this.selectedCmb != null) this.handleCoordinate(this.selectedCmb);
     }
 

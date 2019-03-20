@@ -2,6 +2,7 @@ import { RootState } from '@/store';
 import { ActionTree, MutationTree, GetterTree, Module } from 'vuex';
 import CommonService from '@/api/common.service';
 import { Types } from '@/models';
+import typeData from '@/data/fake.json';
 
 let service = CommonService.getInstance();
 
@@ -20,10 +21,10 @@ const namespaced: boolean = true;
 const actions: ActionTree<TypesState, RootState> = {
     async getTypesAction({ commit }) {
         commit('typesLoadedMutation', false);
-        let result: any = await service.getTypes()
-            .then(res => res.data)
-            .then((res: any) => res.result);
-        commit('typesMutation', result.types);
+        // let result: any = await service.getTypes()
+        //     .then(res => res.data)
+        //     .then((res: any) => res.result);
+        commit('typesMutation', typeData);
         commit('typesLoadedMutation', true);
     }
 };

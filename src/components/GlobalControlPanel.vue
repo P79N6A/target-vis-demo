@@ -1,7 +1,7 @@
 <template>
   <div class="global-control-panel">
     <div class="panel">
-      <span>Filter</span>
+      <span class="view-name">Filter</span>
       <span class="active">
         <i v-if="!templateLoaded || !typesLoaded" class="el-icon-loading"></i>
       </span>
@@ -12,32 +12,20 @@
     </div>
     <div class="filter-form">
       <el-tabs>
-        <el-tab-pane label="定向结构" :disabled="!templateLoaded">
-          <el-tree
-            v-if="templateLoaded && treeData.length !== 0"
-            :props="{children: 'children',  label: 'name', isLeaf: 'isLeaf'}"
-            :data="treeData"
-            node-key="id"
-            :default-expanded-keys="expandKeys"
-          >
-            <span class="custom-tree-node" slot-scope="{ node, data }">
-              <span>{{node.label}}</span>
-              <span class="fill-space-node"></span>
-              <span>频次: {{data.freq}}</span>
-            </span>
-          </el-tree>
-        </el-tab-pane>
         <el-tab-pane label="广告属性">
           <el-form
-            ref="form"
-            :model="form"
             v-if="form != null"
             :disabled="!templateLoaded || !typesLoaded"
             :label-position="'right'"
             label-width="50px"
           >
             <el-form-item label="流量:" prop="siteSet">
-              <el-select v-model="form.siteSet" multiple>
+              <el-select
+                :placeholder="form.siteSet.length === 0 ? '搜索或选择流量' : ''"
+                filterable
+                v-model="form.siteSet"
+                multiple
+              >
                 <el-option
                   v-for="(s, index) in siteSetSelection"
                   :key="index"
@@ -47,7 +35,12 @@
               </el-select>
             </el-form-item>
             <el-form-item label="行业">
-              <el-select v-model="form.industry" multiple>
+              <el-select
+                :placeholder="form.industry.length === 0 ? '搜索或选择行业' : ''"
+                filterable
+                v-model="form.industry"
+                multiple
+              >
                 <el-option
                   v-for="(i, index) in industrySelection"
                   :key="index"
@@ -57,7 +50,7 @@
               </el-select>
             </el-form-item>
             <el-form-item label="平台:">
-              <el-select v-model="form.platform" multiple>
+              <el-select placeholder="搜索或选择平台" filterable v-model="form.platform" multiple>
                 <el-option
                   v-for="(p, index) in platformSelection"
                   :key="index"
@@ -67,7 +60,7 @@
               </el-select>
             </el-form-item>
             <el-form-item label="产品:">
-              <el-select v-model="form.prodType" multiple>
+              <el-select placeholder="搜索或选择产品" filterable v-model="form.prodType" multiple>
                 <el-option
                   v-for="(p, index) in prodTypeSelection"
                   :key="index"
@@ -76,12 +69,7 @@
                 ></el-option>
               </el-select>
             </el-form-item>
-            <el-button @click="reset">重置</el-button>
-            <el-button @click="onSubmit" type="primary">确认</el-button>
-          </el-form>
-        </el-tab-pane>
-        <!-- <el-tab-pane label="广告指标">
-          <el-form :label-position="'right'" label-width="50px">
+
             <el-form-item label="Click:">
               <el-row>
                 <el-col :span="11">
@@ -148,11 +136,38 @@
                 </el-col>
               </el-row>
             </el-form-item>
+            <!-- <el-form-item label="Freq:">
+              <el-row>
+                <el-col :span="11">
+                  <el-input v-model="form.freq.lower"></el-input>
+                </el-col>
+                <el-col :span="2" class="line">-</el-col>
+                <el-col :span="11">
+                  <el-input v-model="form.freq.upper"></el-input>
+                </el-col>
+              </el-row>
+            </el-form-item>-->
             <el-form-item>
-              <el-button type="primary">确认</el-button>
+              <el-button @click="reset">重置</el-button>
+              <el-button @click="onSubmit" type="primary">确认</el-button>
             </el-form-item>
           </el-form>
-        </el-tab-pane>-->
+        </el-tab-pane>
+        <el-tab-pane label="定向结构" :disabled="!templateLoaded">
+          <el-tree
+            v-if="templateLoaded && treeData.length !== 0"
+            :props="{children: 'children',  label: 'name', isLeaf: 'isLeaf'}"
+            :data="treeData"
+            node-key="id"
+            :default-expanded-keys="expandKeys"
+          >
+            <span class="custom-tree-node" slot-scope="{ node, data }">
+              <span>{{node.label}}</span>
+              <span class="fill-space-node"></span>
+              <span>频次: {{data.freq}}</span>
+            </span>
+          </el-tree>
+        </el-tab-pane>
       </el-tabs>
     </div>
   </div>
@@ -260,6 +275,7 @@ export default class GlobalControlPanel extends Vue {
   border-top: 2px solid brown;
   box-shadow: 0 2px 2px #d2d2d2;
   overflow: auto;
+  z-index: 100;
 }
 
 .global-control-panel .filter-form {

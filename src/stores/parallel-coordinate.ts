@@ -2,6 +2,8 @@ import { RootState } from '@/store';
 import { ActionTree, MutationTree, GetterTree, Module } from 'vuex';
 import { TargetingInfo, CombinationData } from '@/models/targeting';
 import fakeData from '@/data/ad.json';
+import CommonService from '@/api/common.service';
+let service = CommonService.getInstance();
 export interface ParallelCoordinateState {
     data: any[];
     detailedData: any;
@@ -29,10 +31,14 @@ const namespaced: boolean = true;
 const actions: ActionTree<ParallelCoordinateState, RootState> = {
     async getDetailAction({ commit, getters }, payload: any) {
         commit('detailedLoadedMutation', false);
-        setTimeout(() => {
-            commit('addDetailState', Object.assign({ detailedData: fakeData.ads }));
-            commit('detailedLoadedMutation', true);
-        }, 1500)
+        // setTimeout(() => {
+        //     commit('addDetailState', Object.assign({ detailedData: fakeData.ads }));
+        //     commit('detailedLoadedMutation', true);
+        // }, 1500)
+        let result: any = await service.getAdsData(payload)
+            .then(res => res.data);
+        commit('addDetailState', Object.assign({ detailedData: result.ads }));
+        commit('detailedLoadedMutation', true)
     }
 };
 

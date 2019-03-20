@@ -8,7 +8,7 @@ export function init() {
                 siteSet: [],
                 platform: [],
                 prodType: [],
-                industry: [],
+                industry: ['游戏'],
                 click: { lower: 0, upper: 999999999999 },
                 cpc: { lower: 0, upper: 999999999999 },
                 cost: { lower: 0, upper: 999999999999 },

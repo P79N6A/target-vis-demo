@@ -29,7 +29,7 @@
         </el-popover>
       </span>
       <span class="fill-space"></span>
-      <span class="active" @click="fullscreen">全屏</span>
+      <span class="active" @click="fullscreen">Fullscreen</span>
     </div>
     <op-log
       :direction="'vertical'"
@@ -197,6 +197,7 @@ export default class HierarchyChord extends Vue {
       );
       drilldown.ids.splice(index, 1, ...result);
       this.addState(message);
+      Bus.$emit("drilldown-addState", message);
     });
     Bus.$on("select-cmb", (message: TargetingInfo[] | null) => {
       this.cmbs = message;

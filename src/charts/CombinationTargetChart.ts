@@ -33,12 +33,11 @@ export default class CombinationTargetChart {
             "#f78fb3", "#ff4757", "#ff9f7f"]);
 
     container: any = new zrender.Group();
-    titleContainer: any = new zrender.Group({ 'zlevel': 1 });
     customBar: any = document.createElement('custom-bar');
     customTitle: any = document.createElement('custom-title');
 
     marginLeft: number = 60;
-    marginTop: number = 70;
+    marginTop: number = 5;
     barHeight: number = 30;
 
     selectedCmb: any | null = null;
@@ -50,7 +49,6 @@ export default class CombinationTargetChart {
     constructor(public dom: string) {
         this.zr = zrender.init(document.querySelector(dom));
         this.resize();
-        this.zr.add(this.titleContainer);
         this.zr.add(this.container);
     }
     resize() {
@@ -58,7 +56,6 @@ export default class CombinationTargetChart {
         this.height = this.zr.getHeight();
         this.width = this.zr.getWidth();
         this.container.attr('position', [this.marginLeft + 0.5, this.marginTop + 0.5]);
-        this.titleContainer.attr('position', [this.marginLeft + 0.5, 0.5]);
         this.xScale.rangeRound([0, this.width - 2 * this.marginLeft]);
     }
     loadData(data: CombinationData[], targets: TargetingInfo[], and: string[], or: string[], filteredIds: TargetingInfo[], selectedCmb: TargetingInfo[] | null, brushCmbs: any) {
@@ -88,14 +85,14 @@ export default class CombinationTargetChart {
     }
 
     paintTitle(targets: TargetingInfo[]) {
-        this.titleContainer.removeAll();
-        // targets = targets.filter(target => this.filteredIds.findIndex(item => item.id === target.id) === -1);
-        targets.forEach((d, i) => {
-            let content: string = "";
-            let textFill: string = "";
+
+        let result = targets.map((d, i) => {
             let isAndTarget = this.and.indexOf(d.id) !== -1;
             let isOrTarget = this.or.indexOf(d.id) !== -1;
             let isFiltered = this.filteredIds.findIndex(item => item.id === d.id) !== -1;
+            let content: any = null;
+            let textFill: any = null;
+            let leftPos = Math.round((this.xScale(d.name) as number) + this.xScale.bandwidth() / 2);
             if (isAndTarget === true) {
                 content = `${d.name} *`;
                 textFill = '#409EFF';
@@ -104,23 +101,50 @@ export default class CombinationTargetChart {
                 textFill = 'red';
             } else if (isFiltered) {
                 content = d.name;
-                textFill = "gray";
+                textFill = "#d2d2d2";
             } else {
                 content = d.name;
                 textFill = "#000";
             }
-            let text = new zrender.Text({
-                name: d.name,
-                style: { text: content, textFill: textFill, textAlign: 'left', textVerticalAlign: 'middle' },
-                rotation: Math.PI / 4,
-                position: [Math.round((this.xScale(d.name) as number) + this.xScale.bandwidth() / 2), this.marginTop - 10]
-            });
-            this.titleContainer.add(text);
+            return Object.assign({ content, textFill, leftPos });
         });
-
+        Bus.$emit('paint-titles', result);
+        // this.titleContainer.removeAll();
+        // // targets = targets.filter(target => this.filteredIds.findIndex(item => item.id === target.id) === -1);
+        // targets.forEach((d, i) => {
+        //     let content: string = "";
+        //     let textFill: string = "";
+        //     let isAndTarget = this.and.indexOf(d.id) !== -1;
+        //     let isOrTarget = this.or.indexOf(d.id) !== -1;
+        //     let isFiltered = this.filteredIds.findIndex(item => item.id === d.id) !== -1;
+        //     if (isAndTarget === true) {
+        //         content = `${d.name} *`;
+        //         textFill = '#409EFF';
+        //     } else if (isOrTarget) {
+        //         content = `${d.name}`;
+        //         textFill = 'red';
+        //     } else if (isFiltered) {
+        //         content = d.name;
+        //         textFill = "gray";
+        //     } else {
+        //         content = d.name;
+        //         textFill = "#000";
+        //     }
+        //     let text = new zrender.Text({
+        //         name: d.name,
+        //         style: { text: content, textFill: textFill, textAlign: 'left', textVerticalAlign: 'middle' },
+        //         rotation: Math.PI / 4,
+        //         position: [Math.round((this.xScale(d.name) as number) + this.xScale.bandwidth() / 2), this.marginTop - 10]
+        //         // , zlevel: 2,
+        //     });
+        //     // this.zr.configLayer(2, { width: this.width, height: 30 })
+        //     this.titleContainer.add(text);
+        // });
+        // this.zr.addHover(this.titleContainer);
     }
     paintBar(data: CombinationData[], ) {
         this.container.removeAll();
+        data = data.filter(d => this.brushCmb == null || this.brushCmb.data.findIndex((item: any) => item === d.cmbtargets) !== -1);
         data.forEach((d: any, i) => {
             // posIndex 用于指示该定向组合的排名
             let rank = d.rank;
@@ -176,18 +200,19 @@ export default class CombinationTargetChart {
         this.container.eachChild((child: any) => {
             let name = child.name
             if (filteredCmbs.indexOf(name) !== -1) {
-                let star = child.childOfName('star').attr('style', { opacity: 1 })
-                    .attr('silent', false);
+                // let star = child.childOfName('star').attr('style', { opacity: 1 })
+                //     .attr('silent', false);
+                child.show();
             }
             else {
-                let star = child.childOfName('star').attr('style', { stroke: '#000', opacity: 0.1 })
-                    .attr('silent', true);
+                // let star = child.childOfName('star').attr('style', { stroke: '#000', opacity: 0.1 })
+                //     .attr('silent', true);
+                child.hide();
             }
         })
 
     }
     resolveState() {
-        console.log(this.selectedCmb, this.brushCmb);
         if (this.selectedCmb != null) {
             let group = this.container.childOfName(this.selectedCmb.cmbtargets);
             group.childOfName('star').attr('active', true).attr('style', { fill: '#000' });
