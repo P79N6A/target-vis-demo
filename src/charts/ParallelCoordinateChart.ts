@@ -3,7 +3,7 @@ import * as d3 from 'd3';
 import Bus from '@/charts/event-bus';
 import { CombinationData } from '@/models/targeting';
 import { sorter } from './CombinationTargetChart';
-import { ScaleLinear, ScalePoint, line, ScaleLogarithmic, lab } from 'd3';
+import { ScaleLinear, ScalePoint, line, ScaleLogarithmic, lab, brush } from 'd3';
 import { throttle } from '@/utils/optimize';
 
 export interface LineDatum {
@@ -75,7 +75,8 @@ export default class ParallelCoordinateChart {
         } else
             this.axises = axises;
         this.activeLine = activeCmb;
-        this.yBrushes = brushCmbs == null ? {} : brushCmbs.brushes;
+        this.yBrushes = brushCmbs == null ? {} : Object.assign({}, brushCmbs.brushes);
+        this.axisScale = d3.scalePoint().domain(this.axises).rangeRound([0, this.cWidth]);
         this.preprocess();
         this.mode = mode;
         this.update();
@@ -97,7 +98,7 @@ export default class ParallelCoordinateChart {
         });
     }
     update() {
-        this.axisScale = d3.scalePoint().domain(this.axises).rangeRound([0, this.cWidth]);
+
         this.computeAxis(this.data);
         this.buildAxis();
         this.lines = this.computeLine(this.data);
@@ -162,11 +163,39 @@ export default class ParallelCoordinateChart {
                 z: 80,
                 name: 'axis-line',
                 shape: { x1: 0, y1: 0, x2: 0, y2: axisHeight },
-                style: { lineWidth: 2, fill: '#000', text: d[0].toUpperCase() + d.substring(1), textAlign: 'center', textPosition: [0, -30] }
+                style: { lineWidth: 2, fill: '#000' }
             });
+            let axisLineLabel = new zrender.Text({
+                z: 80,
+                name: 'axis-line-label',
+                style: { text: d[0].toUpperCase() + d.substring(1), textAlign: 'center' },
+                position: [0, -30]
+            });
+
+            axisLineLabel.on('mousedown', (ev: any) => {
+                let isFirst = this.axisScale.domain().findIndex((axis: string) => axis === d) === 0;
+                if (isFirst === true && this.mode === 'Global') return;
+                let originPosX = group.position[0];
+                let dist = this.adjustX(ev.offsetX) - originPosX;
+                let onMouseMove = (ev: any) => {
+                    let newPosX = this.adjustX(ev.offsetX) - dist;
+                    if (newPosX < -this.marginLeft / 2) newPosX = -this.marginLeft / 2;
+                    if (newPosX > this.cWidth + this.marginRight / 2) newPosX = this.cWidth + this.marginRight / 2
+                    group.attr('position', [newPosX, 0]);
+                };
+                let onMouseUp = () => {
+                    this.handleChangeAxisPos(d, group.position[0]);
+                    this.zr.dom.removeEventListener('mousemove', onMouseMove);
+                    this.zr.dom.removeEventListener('mouseup', onMouseUp);
+                }
+                this.zr.dom.addEventListener('mousemove', onMouseMove);
+                this.zr.dom.addEventListener('mouseup', onMouseUp);
+            });
+
             let ticksGroup = this.buildTicks(d);
             let brushYGroup = this.buildBrushY(d);
             group.add(axisLine);
+            group.add(axisLineLabel);
             group.add(ticksGroup);
             group.add(brushYGroup);
             this.axisContainer.add(group);
@@ -186,6 +215,16 @@ export default class ParallelCoordinateChart {
             axisGroup.add(brushGroup);
             axisGroup.animateTo({ position: [x, 0] });
         });
+    }
+
+    handleChangeAxisPos(name: string, pos: number) {
+        let currentAxisPos = this.axisScale.domain().map((axis: string) => Object.assign({ pos: this.axisScale(axis), name: axis }));
+        let idx = currentAxisPos.findIndex((item: any) => item.name === name);
+        currentAxisPos[idx].pos = pos;
+        currentAxisPos.sort((a: any, b: any) => a.pos - b.pos);
+        let newDomain = currentAxisPos.map((item: any) => item.name);
+        this.axisScale.domain(newDomain);
+        this.update();
     }
 
     filterDataByBrush() {
@@ -281,7 +320,7 @@ export default class ParallelCoordinateChart {
             }
             let y = this.adjustY(ev.offsetY);
             selectionRect.attr('invisible', true).attr('shape', { height: 0 });
-            this.handleBrush();
+            this.handleBrush(false);
             let onMouseMove = (ev: any) => {
                 let currentY = this.adjustY(ev.offsetY);
                 let height = currentY - y;
@@ -310,19 +349,10 @@ export default class ParallelCoordinateChart {
                 let [x, y] = [selectionGroup.position[1], selectionRect.shape.height];
                 if (y > 0) {
                     this.yBrushes[name] = [x, x + y];
-                    // let scale = this.yScales[name];
-                    // let format = this.yFormats[name];
-                    // let [upper, lower] = [format(scale.invert(x)), format(scale.invert(x + y))];
-                    // let brushGroup = this.axisContainer.childOfName(name)
-                    // brushGroup.childOfName('axis-line').attr('style', { textFill: '#409EFF' });
-                    // this.axisContainer.childOfName(name).childOfName('ticks').hide();
                 }
                 else {
                     this.yBrushes[name] = null;
-                    // this.axisContainer.childOfName(name).childOfName('axis-line').attr('style', { textFill: '#000' });
-                    // this.axisContainer.childOfName(name).childOfName('ticks').show();
                 }
-
                 this.handleBrush();
                 this.zr.dom.removeEventListener('mousemove', onMouseMove);
                 this.zr.dom.removeEventListener('mouseup', onMouseUp);
@@ -342,7 +372,8 @@ export default class ParallelCoordinateChart {
     }
 
     showBrushValue() {
-        let brushes = Object.keys(this.yBrushes)
+        let brushes = Object.keys(this.yBrushes);
+
         brushes.forEach(brush => {
             let axisGroup = this.axisContainer.childOfName(brush)
             let group = axisGroup.childOfName('brush-y').childOfName('selection');
@@ -382,23 +413,37 @@ export default class ParallelCoordinateChart {
 
     handleBrush(canEmit: boolean = true) {
         // 如果是Dedail模式下筛选,则不应该发送选中消息
-        if (this.mode === 'Detail') canEmit = false;
         let hasBrush = Object.values(this.yBrushes).some((item: any) => item != null);
         if (hasBrush === true) {
-
             let filteredData = this.filterDataByBrush();
             this.addHover(filteredData);
             this.toggleHighlight(false);
-            if (canEmit === true)
-                Bus.$emit('cmbs-brush', Object.assign({ data: filteredData.map((item: any) => item.cmbtargets), brushes: this.yBrushes }));
+            this.showBrushValue();
+            if (canEmit === false) return;
+            if (canEmit === true && this.mode === 'Global')
+                Bus.$emit('cmbs-brush', Object.assign({
+                    data: filteredData.map((item: any) => item.cmbtargets),
+                    brushes: this.yBrushes
+                }));
+            else if (canEmit === true && this.mode === 'Detail') {
+                Bus.$emit('detail-cmbs-brush', Object.assign({
+                    data: filteredData.map((item: any) => item['adgroup_id']),
+                    brushes: this.yBrushes
+                }));
+            }
         } else {
             this.removeHover();
-            if (canEmit === true)
-                Bus.$emit('cmbs-brush', null);
             if (this.activeLine != null) return;
             else this.toggleHighlight(true);
+            this.showBrushValue();
+            if (canEmit === false) return;
+            if (canEmit === true && this.mode === 'Global')
+                Bus.$emit('cmbs-brush', null);
+            else if (canEmit === true && this.mode === 'Detail') {
+                Bus.$emit('detail-cmbs-brush', null);
+            }
         }
-        this.showBrushValue();
+
 
     }
 
@@ -413,9 +458,10 @@ export default class ParallelCoordinateChart {
             return this.lineGenerator(d, axises);
         });
         lines.forEach((lineData: any) => {
+            let opacity = this.mode === 'Global' ? 1 : 0.7;
             let line = new zrender.Polyline({
                 shape: { points: lineData.points },
-                style: { opacity: this.detailLineOpacity, stroke: '#c23531' },
+                style: { opacity: 1, stroke: '#c23531' },
                 z: 30
             });
             this.brushHoverContainer.add(line);
@@ -425,7 +471,7 @@ export default class ParallelCoordinateChart {
 
     buildTicks(d: string) {
         let format: any = null;
-        if (d !== 'ctr') format = d3.format(".0~s");
+        if (d !== 'ctr') format = d3.format(".3~s");
         else format = d3.format("~%");
         this.yFormats[d] = format;
         let ticks = [];
@@ -443,8 +489,8 @@ export default class ParallelCoordinateChart {
             ticks = scale.ticks(5);
 
         }
-                    let domain = scale.domain();
-                    if (ticks[ticks.length - 1] < domain[1]) ticks.push(domain[1]);
+        let domain = scale.domain();
+        if (ticks[ticks.length - 1] < domain[1]) ticks.push(domain[1]);
 
 
         let ticksGroup = new zrender.Group({ name: 'ticks' });
@@ -464,6 +510,10 @@ export default class ParallelCoordinateChart {
 
     adjustY(offsetY: number) {
         return offsetY - this.marginTop;
+    }
+
+    adjustX(offsetX: number) {
+        return offsetX - this.marginLeft;
     }
 
     paint(data: any[]) {
@@ -488,23 +538,11 @@ export default class ParallelCoordinateChart {
         else {
             this.deactivate();
         }
-        let hasBrush = Object.values(this.yBrushes).some(brush => brush != null);
-        if (hasBrush === false) {
-            this.removeHover();
-        }
-        else {
-            let filteredData = this.filterDataByBrush();
-            this.addHover(filteredData);
-        }
+        this.handleBrush(false);
     }
 
-    // addLine(selectedCmb: any | null) {
-    //     if (selectedCmb != null) this.activate(selectedCmb.cmbtargets);
-    //     else this.deactivate();
-    // }
-
     activate(name: string) {
-        this.activeLine = name;
+
         let hoverLineData = this.lines.find((item: any) => item.name === name);
         this.hoverContainer.removeAll();
         let hoverLine = this.hoverContainer.childOfName('active-line');

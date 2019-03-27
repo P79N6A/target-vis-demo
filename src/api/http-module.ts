@@ -1,5 +1,5 @@
 import Axios, { AxiosInstance, AxiosRequestConfig, AxiosPromise } from 'axios'
-
+export let defaultSource = Axios.CancelToken.source();
 export interface rxiosConfig extends AxiosRequestConfig {
     localCache?: boolean
 }
@@ -12,15 +12,12 @@ export default class HttpModule {
     private httpClient: AxiosInstance;
     constructor(private options: rxiosConfig = { baseURL: 'http://10.40.185.58:8080' }) {
         this.httpClient = Axios.create(options);
-        // this.httpClient.interceptors.request.use(config => {
-
-        //   if (/admin/.test(config.url as string) === true) {
-        //     if (localStorage.getItem('auth-token')) {
-        //       config.headers = { Authorization: 'Bearer ' + localStorage.getItem('auth-token') }
-        //     }
-        //   }
-        //   return config
-        // });
+        Axios.interceptors.request.use((config: any) => {
+            if (config.cancelToken == null) {
+                config.cancelToken = defaultSource.token;
+            }
+            return config;
+        });
     }
     private makeRequest<T>(method: string, url: string, queryParams?: object, body?: object, headers?: object) {
         let request: AxiosPromise<T>;

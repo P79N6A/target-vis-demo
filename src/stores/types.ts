@@ -2,7 +2,6 @@ import { RootState } from '@/store';
 import { ActionTree, MutationTree, GetterTree, Module } from 'vuex';
 import CommonService from '@/api/common.service';
 import { Types } from '@/models';
-import typeData from '@/data/fake.json';
 
 let service = CommonService.getInstance();
 

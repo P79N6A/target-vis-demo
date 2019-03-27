@@ -1,13 +1,13 @@
 <template>
   <div
     :element-loading-text="loadingText"
-    v-loading="!templateLoaded || !loaded "
+    v-loading="!systemLoaded"
     class="combination-target chart-container"
   >
     <div class="panel">
-      <span class="view-name">Combination View</span>
+      <span class="view-name">定向组合图</span>
       <el-dropdown trigger="click" @command="handleMenuClick">
-        <el-button type="text">Sort by {{sorter[0].toUpperCase() + sorter.substring(1)}}</el-button>
+        <el-button type="text">按 {{sorter[0].toUpperCase() + sorter.substring(1)}} 排序</el-button>
         <el-dropdown-menu slot="dropdown">
           <el-dropdown-item command="Freq">Freq</el-dropdown-item>
           <el-dropdown-item command="Click">Click</el-dropdown-item>
@@ -21,7 +21,7 @@
 
       <el-dropdown trigger="click" @command="handleSizeChange">
         <span>
-          <el-button type="text">Top {{itemSize}}</el-button>
+          <el-button type="text">Top {{limit}} 的定向组合</el-button>
         </span>
         <el-dropdown-menu slot="dropdown">
           <el-dropdown-item command="10">10</el-dropdown-item>
@@ -64,9 +64,12 @@
             <el-button @click="onSubmit" type="primary">提交</el-button>
           </el-form-item>
         </el-form>
-        <el-button slot="reference" type="text">And | Or</el-button>
+        <el-button slot="reference" type="text">必含 | 可含定向选择</el-button>
       </el-popover>
-      <span :class="{ active: selectedCmb != null  }" @click="handleDetail">Switch to detail</span>
+      <span
+        :class="{ active: selectedCmb != null  }"
+        @click="handleDetail"
+      >切换为{{mode !== 'Global' ? '全局' : '详情'}}模式</span>
       <span class="fill-space"></span>
     </div>
     <div v-show="titles" class="title-container">
@@ -75,11 +78,6 @@
         :key="index"
         :style="{color: title.textFill, left: title.leftPos + 'px'}"
       >{{title.content}}</span>
-      <!-- <span
-        v-for="(title,index) in ids"
-        :key="index"
-        :style="{transform: 'rotate(45)'}"
-      >{{title.name}}</span>-->
     </div>
     <div class="chart"></div>
   </div>
@@ -92,7 +90,7 @@ import CombinationTargetChart, {
 } from "@/charts/CombinationTargetChart";
 import { Getter, Mutation, Action } from "vuex-class";
 import Bus from "@/charts/event-bus";
-import { CombinationOp } from "@/models";
+import { CombinationOp } from "@/models/combination";
 @Component({
   mounted() {
     const vm: any = this;
@@ -102,16 +100,25 @@ import { CombinationOp } from "@/models";
 })
 export default class CombinationTarget extends Vue {
   chart!: CombinationTargetChart;
-  lock: boolean = false;
-  itemSize: number = 30;
 
-  @Getter("loaded", { namespace: "relation" })
-  rLoade!: boolean;
+  limit: number = 30;
+
+  @Getter("systemLoaded")
+  systemLoaded!: boolean;
+  @Getter("currentOpLog")
+  currentState!: any;
+
+  @Watch("currentState")
+  watchCurrentState(nVal: any) {
+    if (nVal == null) return;
+    this.initState(nVal);
+    this.initData(this.data);
+    this.process(this.data);
+  }
 
   get loadingText() {
-    if (this.templateLoaded === false) return "加载定向树...";
-    else if (this.loaded === false) return "计算定向组合模式...";
-    else return "等待其它视图加载数据...";
+    if (this.systemLoaded === false) return "Loading...";
+    else return "";
   }
 
   orAndStr: string = "";
@@ -131,20 +138,6 @@ export default class CombinationTarget extends Vue {
   showPopmenu: boolean = false;
   indexes: string[] = ["freq", "expo", "cost", "click", "ctr", "cpc", "ecpm"];
 
-  get currentOp() {
-    return this.opLogs.find(item => item.key === this.opPointer);
-  }
-
-  @Watch("filteredIds")
-  watchfilteredIds(nVal: TargetingInfo[] | null) {
-    this.filteredIds = nVal == null ? [] : nVal;
-    if (this.currentOp == null) return;
-    else this.process(this.currentOp.data);
-  }
-
-  @Mutation("modeMutation", { namespace: "parallelCoordinate" })
-  modeMutation(mode: string) {}
-
   lockForm: boolean = false;
   titles: any = null;
 
@@ -152,50 +145,7 @@ export default class CombinationTarget extends Vue {
 
   selectedCmb: TargetingInfo[] | null = null;
 
-  @Mutation("indexesMutation", { namespace: "parallelCoordinate" })
-  indexesMutation(payload: string[]) {}
-
-  @Action("addState", { namespace: "combination" })
-  addState(payload: any) {}
-
-  @Mutation("opPointerMutation", { namespace: "combination" })
-  opPointerMutation(payload: string) {}
-
-  @Getter("templateLoaded", { namespace: "template" })
-  templateLoaded!: boolean;
-  @Watch("templateLoaded")
-  watchTemplateLoaded(nVal: boolean) {
-    if (nVal === false) return;
-    // 当第一次加载视图并且opPointer不为空,表明当前应恢复视图在上一次操作中保存的状态
-    if (this.restore === true && this.opPointer !== "") {
-      this.restore = false;
-    } else {
-      this.createState();
-    }
-  }
-  @Action("createState", { namespace: "combination" })
-  createState() {}
-  @Getter("loaded", { namespace: "combination" })
-  loaded!: boolean;
   processedData: CombinationData[] = [];
-
-  @Getter("opLogs", { namespace: "combination" })
-  opLogs!: CombinationOp[];
-  @Getter("opPointer", { namespace: "combination" })
-  opPointer!: string;
-
-  @Mutation("dataMutation", { namespace: "parallelCoordinate" })
-  dataMutation(payload: any[]) {}
-
-  @Watch("opPointer")
-  watchOpPointer(nVal: string) {
-    let op = this.currentOp;
-    if (op == null) return;
-    this.initState(op);
-    this.initData(op.data as CombinationData[]);
-    this.indexesMutation(this.indexes);
-    this.process(op.data);
-  }
 
   @Watch("or")
   watchOr(nVal: string[]) {
@@ -206,22 +156,28 @@ export default class CombinationTarget extends Vue {
     });
   }
 
-  initState(op: CombinationOp) {
-    this.data = op.data;
-    this.sorter = op.sorter;
-    this.itemSize = op.itemSize;
+  initState(op: any) {
+    this.lockForm = false;
+    this.data = op.combinationState.data;
+    this.controlState = Object.assign({}, op.combinationState.controlState);
+    this.sorter = this.controlState.sorter;
+    this.limit = this.controlState.limit;
+    this.orAndStr = this.controlState.orAndStr;
+    this.brushedCmbs = this.controlState.brushedCmbs;
+    this.mode = "Global";
+    // 排序坐标轴
     let sIdx = this.indexes.indexOf(this.sorter);
     [this.indexes[0], this.indexes[sIdx]] = [
       this.indexes[sIdx],
       this.indexes[0]
     ];
-    this.ids = op.ids;
-    this.orAndStr = op.orAndStr;
+
+    this.ids = op.targets;
     let { and, or } = JSON.parse(this.orAndStr);
     this.and = and;
     this.or = or;
-    this.selectableAnd = op.ids.map(item => Object.assign({}, item));
-    this.selectableOr = op.ids.map(item => Object.assign({}, item));
+    this.selectableAnd = this.ids.map(item => Object.assign({}, item));
+    this.selectableOr = this.ids.map(item => Object.assign({}, item));
     this.and.forEach(
       item =>
         ((this.selectableOr.find(or => or.id === item) as any).disabled = true)
@@ -232,10 +188,9 @@ export default class CombinationTarget extends Vue {
           and => and.id === item
         ) as any).disabled = true)
     );
-    this.activeId = op.activeId;
+    this.activeId = op.highlightedTarget;
     this.selectedCmb = op.selectedCmb;
-    this.filteredIds = op.filteredIds == null ? [] : op.filteredIds;
-    this.brushedCmbs = op.brushCmbs;
+    this.filteredIds = op.filteredTargets == null ? [] : op.filteredTargets;
     if (this.activeId != null) this.operateAnd(this.activeId);
   }
 
@@ -263,12 +218,14 @@ export default class CombinationTarget extends Vue {
     this.and = and;
   }
 
+  controlState: any = null;
+
   @Watch("and")
   watchAnd(nVal: string[]) {
     // And 值改变有两种
     if (this.lockForm === true) {
-      if (this.currentOp == null) return;
-      this.process(this.currentOp.data);
+      if (this.currentState == null) return;
+      this.process(this.data);
     }
     this.selectableOr.forEach((item: any) => {
       let index = this.and.indexOf(item.id);
@@ -276,9 +233,6 @@ export default class CombinationTarget extends Vue {
       else item.disabled = false;
     });
   }
-
-  @Mutation("saveStateMutation", { namespace: "combination" })
-  saveStateMutation(payload: any) {}
 
   handleCoordinate() {
     Bus.$on("highlight-target", (message: TargetingInfo) => {
@@ -288,53 +242,49 @@ export default class CombinationTarget extends Vue {
         this.activeId = message;
         this.operateAnd(this.activeId);
       }
-      if (this.currentOp == null) return;
+      if (this.currentState == null) return;
       this.process(this.data);
     });
     Bus.$on("filter-targets", (message: any) => {
       this.filteredIds = message;
-      if (this.currentOp == null) return;
-      this.process(this.data);
+      if (this.currentState == null) return;
+      this.renderChart();
     });
     Bus.$on("select-cmb", (message: any) => {
       this.selectedCmb = message;
+      if (this.selectedCmb == null) {
+        this.mode = "Global";
+        Bus.$emit("change-global");
+        Bus.$emit(
+          "send-data",
+          Object.assign({
+            mode: "Global",
+            data: this.processedData.map((item: any) =>
+              Object.assign({}, item)
+            ),
+            detailedData: null,
+            indexes: this.indexes,
+            selectedCmb: this.selectedCmb,
+            brushedCmbs: this.brushedCmbs
+          })
+        );
+        return;
+      }
+      if (this.mode === "Detail") this.sendGetDetailMessage();
+      // this.renderChart();
     });
     Bus.$on("drilldown-addState", (message: any) => {
       // 每次组合图下钻之前,应把之前的or and sorter等状态保存
-      let newOp = Object.assign({}, this.currentOp, {
-        orAndStr: this.orAndStr,
-        activeId: this.activeId,
-        filteredIds: this.filteredIds,
-        itemSize: this.itemSize,
-        sorter: this.sorter,
-        selectedCmb: this.selectedCmb,
-        brushCmbs: this.brushedCmbs
-      });
       this.cancelAnd();
-      this.saveStateMutation(
-        Object.assign({ opPointer: this.opPointer, op: newOp })
-      );
-      this.addState(message.drilldown);
     });
     Bus.$on("paint-titles", (message: any) => {
       this.titles = message;
     });
-    Bus.$on("change-op", (message: string) => {
-      // this.cancelAnd();
-      this.opPointerMutation(message);
-    });
     Bus.$on("cmbs-brush", (message: any) => {
+      this.controlState.brushedCmbs = message;
       this.brushedCmbs = message;
-      if (this.currentOp == null) return;
-      this.chart.loadData(
-        this.processedData,
-        this.ids,
-        this.and,
-        this.or,
-        this.filteredIds,
-        this.selectedCmb,
-        this.brushedCmbs
-      );
+      if (this.currentState == null) return;
+      this.renderChart();
     });
   }
   brushedCmbs: string[] | null = null;
@@ -344,20 +294,25 @@ export default class CombinationTarget extends Vue {
     this.orAndStr = JSON.stringify(
       Object.assign({ or: this.or, and: this.and })
     );
-    if (this.currentOp == null) return;
+    this.controlState.orAndStr = this.orAndStr;
+    if (this.currentState == null) return;
     this.brushedCmbs = null;
-    this.process(this.currentOp.data);
+    this.process(this.data);
     this.showPopmenu = false;
   }
 
   initData(data: CombinationData[]) {
     if (data.length == 0) return;
     let map = new Map<string, string[]>();
-    data.forEach((d, i) => {
-      map.set(d.cmbtargets, (d as any).adgroupids);
-      delete (d as any).adgroupids;
+    let adgroupids = "";
+    data.forEach((d: any, i) => {
+      adgroupids += d.adgroupids;
+      d.aids = d.adgroupids.replace(/'/g, "");
+      map.set(d.cmbtargets, d.aids);
     });
+    adgroupids = adgroupids.replace(/'/g, "");
     this.map = map;
+    // Bus.$emit("send-adgroupids", adgroupids);
   }
 
   getDataByOrAnd(data: CombinationData[]) {
@@ -382,7 +337,7 @@ export default class CombinationTarget extends Vue {
   }
 
   limitData(data: CombinationData[]) {
-    let topData = data.slice(0, this.itemSize);
+    let topData = data.slice(0, this.limit);
     topData.forEach((d: any, i: number) => (d.rank = i + 1));
     if (
       this.selectedCmb != null &&
@@ -399,13 +354,8 @@ export default class CombinationTarget extends Vue {
     }
     return topData;
   }
-  @Mutation("addState", { namespace: "parallelCoordinate" })
-  addStateP(payload: any) {}
 
-  process(data: CombinationData[]) {
-    this.processedData = this.getDataByOrAnd(data);
-    this.processedData = this.sortData(this.processedData, this.sorter);
-    this.processedData = this.limitData(this.processedData);
+  renderChart() {
     this.chart.loadData(
       this.processedData,
       this.ids,
@@ -415,25 +365,77 @@ export default class CombinationTarget extends Vue {
       this.selectedCmb,
       this.brushedCmbs
     );
-    this.addStateP(
+  }
+
+  process(data: CombinationData[]) {
+    this.processedData = this.getDataByOrAnd(data);
+    this.processedData = this.sortData(this.processedData, this.sorter);
+    this.processedData = this.limitData(this.processedData);
+    this.renderChart();
+    Bus.$emit(
+      "send-data",
       Object.assign({
-        data: this.processedData,
+        mode: "Global",
+        data: this.processedData.map((item: any) => Object.assign({}, item)),
+        detailedData: null,
         indexes: this.indexes,
         selectedCmb: this.selectedCmb,
-        brushCmbs: this.brushedCmbs
+        brushedCmbs: this.brushedCmbs
       })
     );
   }
 
-  @Getter("detailedLoaded", { namespace: "parallelCoordinate" })
-  detailedLoaded!: boolean;
+  mode: string = "Global";
 
   handleDetail() {
+    if (this.mode === "Global") {
+      this.mode = "Detail";
+      this.sendGetDetailMessage();
+    } else if (this.mode === "Detail") {
+      this.mode = "Global";
+      Bus.$emit("change-global");
+      Bus.$emit(
+        "send-data",
+        Object.assign({
+          mode: "Global",
+          data: this.processedData.map((item: any) => Object.assign({}, item)),
+          detailedData: null,
+          indexes: this.indexes,
+          selectedCmb: this.selectedCmb,
+          brushedCmbs: this.brushedCmbs
+        })
+      );
+    }
+  }
+
+  sendGetDetailMessage() {
     let selectedCmb = this.selectedCmb;
     if (selectedCmb == null) return;
     let adgroupids = this.map.get((selectedCmb as any).cmbtargets);
-    console.log(adgroupids);
     Bus.$emit("get-detail", adgroupids);
+  }
+
+  @Getter("detailLoaded")
+  detailLoaded!: boolean;
+
+  @Watch("detailLoaded")
+  watchDetailLoaded(nVal: boolean) {
+    if (
+      nVal === false ||
+      this.currentState == null ||
+      this.currentState.combinationState.detailedData == null
+    )
+      return;
+    Bus.$emit(
+      "send-data",
+      Object.assign({
+        mode: "Detail",
+        detailedData: this.currentState.combinationState.detailedData,
+        indexes: this.indexes,
+        selectedCmb: null,
+        brushedCmbs: null
+      })
+    );
   }
 
   sortData(data: CombinationData[], condition: string) {
@@ -445,20 +447,21 @@ export default class CombinationTarget extends Vue {
 
   handleMenuClick(sorter: string) {
     this.sorter = sorter.toLowerCase();
+    this.controlState.sorter = sorter.toLowerCase();
     let sIdx = this.indexes.indexOf(this.sorter);
     let clickedIndex = this.indexes[sIdx];
     this.indexes.splice(sIdx, 1);
     this.indexes.unshift(clickedIndex);
-    let op = this.currentOp;
-    if (op == null) return;
+    if (this.currentState == null) return;
     this.brushedCmbs = null;
-    this.process(op.data);
+    this.process(this.data);
   }
 
   handleSizeChange(size: number) {
-    this.itemSize = +size;
-    if (this.currentOp == null) return;
-    this.process(this.currentOp.data);
+    this.limit = +size;
+    this.controlState.limit = this.limit;
+    if (this.currentState == null) return;
+    this.process(this.data);
   }
 }
 </script>
@@ -467,7 +470,7 @@ export default class CombinationTarget extends Vue {
   overflow-y: scroll;
 }
 .combination-target.chart-container .title-container {
-  /* overflow: hidden; */
+  overflow-x: hidden;
   position: relative;
   margin: 0 60px;
   height: 80px;

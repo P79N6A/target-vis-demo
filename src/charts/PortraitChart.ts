@@ -101,13 +101,14 @@ export default class PortraitChart {
     }
 
     loadData(data: any[], targets: TargetingInfo[], index: string, activeId: null | TargetingInfo, filteredIds: TargetingInfo[] | null) {
+
+
         this.data = data;
         this.data = this.data.filter((d: any) => d.pattern != null);
         this.targets = targets;
         this.activeId = activeId == null ? null : activeId.id;
         this.filteredIds = filteredIds == null ? [] : filteredIds;
 
-        console.log(arguments);
 
         this.index = index.toLowerCase();
         this.data.sort((a: any, b: any) => b[this.index] - a[this.index]);
@@ -182,7 +183,7 @@ export default class PortraitChart {
                 style: {
                     stroke: '#000', text: d,
                     truncate: {
-                        outerWidth: this.xScale.bandwidth() - 6
+                        outerWidth: Math.round(this.xScale.bandwidth() - 20)
                     },
                     textAlign: 'center', textPosition: [0, 8]
                 }
@@ -343,6 +344,7 @@ export default class PortraitChart {
             else {
                 keys = Object.keys(data);
                 keys = keys.filter(key => this.filteredIds.findIndex(item => item.id === key) === -1);
+                keys.sort((a, b) => data[b] - data[a]);
             }
             keys.forEach(key => {
                 let color = this.color(key[0]);
@@ -357,8 +359,6 @@ export default class PortraitChart {
         // 绘制定向相关柱状图时,应注意查看clicked
         let domain = xScale.domain();
         data = data.filter(d => domain.indexOf(d.name) !== -1);
-        let realTargets = this.targets.filter(target => this.filteredIds.findIndex(item => item.id === target.id) === -1);
-
         parentGroup.removeAll();
         data.forEach((d: any) => {
             let name = d.name;
@@ -379,7 +379,7 @@ export default class PortraitChart {
                     rectId: keys[i],
                     z: 10
                 });
-                if (width >= 15 && parentGroup.name !== 'background')
+                if (width >= 15 && domain.length <= 4 && parentGroup.name !== 'background')
                     rect.attr('style', {
                         fontSize: 12,
                         textFill: '#000',
@@ -419,7 +419,6 @@ export default class PortraitChart {
     paintBar(data: Datum[], xScale: ScaleBand<string>, yScale: ScaleLinear<number, number>, height: number, fill: string, parentGroup: any) {
         let domain = xScale.domain();
         data = data.filter((d: any) => domain.indexOf(d.name) !== -1);
-        console.log(data);
         // 矩形宽度
         let width = Math.round(xScale.bandwidth());
         let step = Math.round(xScale.step());

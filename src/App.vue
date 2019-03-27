@@ -3,11 +3,11 @@
     <app-dialog :show="showDialog" @close-dialog="showDialog = false"></app-dialog>
     <div class="top">
       <global-control-panel @open-dialog="showDialog = true"></global-control-panel>
-      <hierarchy-chord></hierarchy-chord>
-      <combination-target></combination-target>
+      <hierarchy-chord ref="hierarchyChord"></hierarchy-chord>
+      <combination-target ref="cominationTarget"></combination-target>
     </div>
     <div class="bottom">
-      <portrait></portrait>
+      <portrait ref="portrait"></portrait>
       <parallel-coordinate></parallel-coordinate>
     </div>
   </div>
@@ -25,7 +25,7 @@ import { Mutation, Action, Getter } from "vuex-class";
 
 import { FilterForm, Types } from "@/models";
 import { TargetingInfo } from "@/models/targeting";
-
+import Bus from "@/charts/event-bus";
 @Component({
   components: {
     HierarchyChord,
@@ -38,47 +38,51 @@ import { TargetingInfo } from "@/models/targeting";
   mounted() {
     const vm: any = this;
     vm.prepare();
+    vm.handleDrilldown();
   }
 })
 export default class App extends Vue {
-  @Mutation("globalFilterMutation")
-  globalFilterMutation(payload: any) {}
-
+  // 是否打开保存面板
   showDialog: boolean = false;
-
   // 处理定向模板
   @Action("getTemplateAction", { namespace: "template" })
   getTemplateAction() {}
   @Getter("templateLoaded", { namespace: "template" })
   templateLoaded!: boolean;
+  @Getter("systemLoaded")
+  systemLoaded!: boolean;
+  @Action("loadAllState")
+  loadAllState(payload: any) {}
   // 监听
-  // @Watch("templateLoaded")
-  // watchTemplateLoaded(nVal: boolean) {
-  //   if (nVal === true) {
-  //     this.$notify({
-  //       title: "提示",
-  //       type: "success",
-  //       duration: 2000,
-  //       message: "定向模板加载成功"
-  //     });
-  //   }
-  // }
-
-  // 处理筛选条件
-  @Action("getTypesAction", { namespace: "types" })
-  getTypesAction() {}
-  @Getter("types", { namespace: "types" })
-  types!: Types;
-  @Getter("typesLoaded", { namespace: "types" })
-  typesLoaded!: boolean;
+  @Watch("templateLoaded")
+  watchTemplateLoaded(nVal: boolean) {
+    if (nVal === false) return;
+    // 当初始打开系统时需要根据systemLoaded判断是否加载了原有方案或是完全初始化
+    // if (this.systemLoaded === false) {
+    //   console.log("need init");
+    //   this.loadAllState();
+    // }
+    this.loadAllState(Object.assign({ type: "Init" }));
+  }
   // 监听
   @Watch("typesLoaded")
   watchTypesLoaded(nVal: boolean) {
     if (nVal === true) this.getTemplateAction();
   }
 
+  // 处理筛选条件
+  @Action("getTypesAction", { namespace: "types" })
+  getTypesAction() {}
+  // @Getter("types", { namespace: "types" })
+  // types!: Types;
+  @Getter("typesLoaded", { namespace: "types" })
+  typesLoaded!: boolean;
+
   @Mutation("resolveState")
   resolveState(payload: any) {}
+
+  @Mutation("restoreAllState")
+  restoreAllState(payload: any) {}
 
   @Mutation("allMutation", { namespace: "relation" })
   rallMutation(payload: any) {}
@@ -89,10 +93,69 @@ export default class App extends Vue {
   prepare() {
     let result = init();
     // 将默认方案保存的状态推送至各个state
-    // this.rallMutation(result.relationState);
+    // this.restoreAllState(result.test);
     this.resolveState(result.globalState);
     // // 开始请求模板
     this.getTypesAction();
+  }
+
+  @Getter("currentOpLog")
+  currentState!: any;
+
+  @Action("loadDetailState")
+  loadDetailState(payload: string) {}
+
+  handleDrilldown() {
+    Bus.$on("highlight-target", (message: any) => {
+      if (this.currentState == null) return;
+      this.currentState.highlightedTarget = message;
+    });
+    Bus.$on("filter-targets", (message: any) => {
+      if (this.currentState == null) return;
+      if (message == null) this.currentState.filteredTargets = null;
+      else
+        this.currentState.filteredTargets = message.map((item: any) =>
+          Object.assign({}, item)
+        );
+    });
+    Bus.$on("select-cmb", (message: any) => {
+      this.currentState.selectedCmb = message;
+    });
+    Bus.$on("get-detail", (adgroupids: string) => {
+      this.loadDetailState(
+        Object.assign({
+          ids: this.currentState.targets.map((item: any) => item.id),
+          adgroupids
+        })
+      );
+    });
+    Bus.$on("drilldown-addState", (message: any) => {
+      if (this.currentState == null) return;
+      let newOp = Object.assign({}, this.currentState);
+      newOp.relationState.controlState = Object.assign(
+        {},
+        (this.$refs["hierarchyChord"] as any).controlState
+      );
+      newOp.combinationState.controlState = Object.assign(
+        {},
+        (this.$refs["cominationTarget"] as any).controlState
+      );
+      newOp.portraitState.controlState = Object.assign(
+        {},
+        (this.$refs["portrait"] as any).controlState
+      );
+      newOp.portraitState.controlState.mode = "Global";
+      newOp.portraitState.detailedData = null;
+      newOp.combinationState.detailedData = null;
+      this.loadAllState(
+        Object.assign({
+          type: "Drilldown",
+          ids: message.drilldown.ids,
+          message: `${message.drilldown.clicked.name}`,
+          newOp
+        })
+      );
+    });
   }
 }
 </script>

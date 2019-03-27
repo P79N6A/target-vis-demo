@@ -39,12 +39,14 @@ export function getTreeNodes(root: TargetingTreeNode) {
     // return result;
 }
 
-export function getInitTargetingIds(tree: TargetingTreeNode, filters: string[] = ['6', '7', '8']) {
+export function getInitTargetingIds(tree: TargetingTreeNode, freqLimit: any, filters: string[] = ['6', '7', '8']) {
     let ids: any[] = [];
+    let freq = freqLimit.freq;
     tree.children.forEach((node: any) => {
         if (filters.indexOf(node.id) !== -1) return;
         node.children.forEach((n: any) => {
-            ids.push(Object.assign({}, { id: n.id, name: n.name, level: n.level, freq: n.freq, cost: n.cost }))
+            if (n.freq >= freq.lower)
+                ids.push(Object.assign({}, { id: n.id, name: n.name, level: n.level, freq: n.freq, cost: n.cost }))
         });
     });
     return ids;
@@ -67,8 +69,9 @@ export function getTargets(tree: TargetingTreeNode, ids: string[]) {
     return result;
 }
 
-export function getNextLevelTargets(template: TargetingTreeNode, parentId: string) {
+export function getNextLevelTargets(template: TargetingTreeNode, parentId: string, globalFilter: any) {
     let result: Array<TargetingInfo> = [];
+    let freq = globalFilter.freq;
     let root = template.children.find((t) => t.id === parentId[0]);
     let len = 1;
     while (root != null && root.id != parentId) {
@@ -76,7 +79,8 @@ export function getNextLevelTargets(template: TargetingTreeNode, parentId: strin
         root = root.children.find((t) => t.id === parentId.substr(0, len))
     }
     if (root == null) return [];
-    return root.children.map(r => Object.assign({ id: r.id, name: r.name, level: r.level, freq: r.freq, cost: r.cost }));
+    return root.children.map(r => Object.assign({ id: r.id, name: r.name, level: r.level, freq: r.freq, cost: r.cost }))
+        .filter(t => t.freq >= freq.lower);
 }
 
 export function transformPostData(globalFilter: FilterForm, types: Types) {

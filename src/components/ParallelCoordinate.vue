@@ -1,16 +1,13 @@
 <template>
   <div
-    :element-loading-text="LoadingText"
-    v-loading=" !allLoaded"
+    :element-loading-text="loadingText"
+    v-loading=" !systemLoaded || !detailLoaded"
     class="parallel-coordinate chart-container"
   >
     <div class="panel">
-      <span class="view-name">Parallel-Coordinate {{mode === 'Detail' ? '(Detail)' : '(Global)'}}</span>
-      <span :class="{ active: canClearBrushes }" @click="handleClear">Clear all brushes</span>
-      <span
-        class="active"
-        @click="handleShowData"
-      >{{showData === true ? 'Show chart' : 'Show data'}}</span>
+      <span class="view-name">平行坐标 {{mode === 'Detail' ? '(定向组合限定)' : '(全局)'}}</span>
+      <span :class="{ active: canClearBrushes }" @click="handleClear">清除全部刷选</span>
+      <span class="active" @click="handleShowData">{{showData === true ? '显示视图' : '显示数据'}}</span>
     </div>
     <div class="table-container" v-if="showData">
       <el-table
@@ -22,6 +19,8 @@
       >
         <el-table-column prop="rank" label="Rank" v-if="mode === 'Global'"></el-table-column>
         <el-table-column prop="freq" label="Freq" v-if="mode === 'Global'"></el-table-column>
+        <el-table-column prop="adgroup_id" label="广告ID" v-if="mode === 'Detail'"></el-table-column>
+        <el-table-column prop="advertiser_id" label="广告主ID" v-if="mode === 'Detail'"></el-table-column>
         <el-table-column
           v-for="(index, idx) in this.indexes.filter(index => index !== 'freq')"
           :key="idx"
@@ -52,28 +51,30 @@ export default class ParallelCoordinate extends Vue {
   chart!: any;
   detailedData: any = null;
   showData: boolean = false;
-  get LoadingText() {
-    if (this.templateLoaded === false) return "加载定向树...";
-    if (this.loaded === false) return "计算定向指标";
-    if (this.detailedLoaded === false) return "计算定向组合详情指标";
+  get loadingText() {
+    if (this.systemLoaded === false) return "Loading...";
+    if (this.detailLoaded === false) return "加载详情数据...";
     return "";
   }
 
   get tableData() {
-    if (this.mode === "Global") return this.data;
-    else return this.detailedData;
+    if (this.mode === "Global") {
+      if (this.brushCmbs == null) return this.data;
+      else
+        return this.data.filter(
+          (d: any) => this.brushCmbs.data.indexOf(d.cmbtargets) != -1
+        );
+    } else {
+      if (this.detailedBrush == null) return this.detailedData;
+      else
+        return this.detailedData.filter(
+          (d: any) => this.detailedBrush.data.indexOf(d.adgroup_id) != -1
+        );
+    }
   }
 
-  handleDetail() {}
-
-  @Getter("templateLoaded", { namespace: "template" })
-  templateLoaded!: boolean;
-
-  @Getter("loaded", { namespace: "combination" })
-  loaded!: boolean;
-
-  @Getter("allState", { namespace: "parallelCoordinate" })
-  state!: any;
+  @Getter("systemLoaded")
+  systemLoaded!: boolean;
 
   renderChart() {
     if (this.mode === "Global")
@@ -90,7 +91,7 @@ export default class ParallelCoordinate extends Vue {
         this.indexes,
         this.mode,
         null,
-        null
+        this.detailedBrush
       );
   }
 
@@ -125,36 +126,22 @@ export default class ParallelCoordinate extends Vue {
   get canClearBrushes() {
     if (this.mode === "Global")
       return this.brushCmbs != null && this.selectedCmb == null;
-    else if (this.mode === "Detail") return this.brushCmbs != null;
+    else if (this.mode === "Detail") return this.detailedBrush != null;
   }
 
   get allLoaded() {
-    if (this.templateLoaded === false) return false;
-    if (this.loaded === false) return false;
-    if (this.detailedLoaded === false) return false;
     return true;
   }
 
-  @Getter("detailedLoaded", { namespace: "parallelCoordinate" })
-  detailedLoaded!: boolean;
-
   handleClear() {
     if (this.canClearBrushes === false) return;
-    Bus.$emit("cmbs-brush", null);
-    this.brushCmbs = null;
-    this.renderChart();
-  }
-
-  @Watch("state")
-  watchState(nVal: any) {
-    this.initFilter(nVal);
-  }
-
-  @Watch("data")
-  watchData(nVal: any) {
-    if (nVal == null || this.mode !== "Global") return;
-    this.preprocess(this.data);
-    if (this.chart == null) return;
+    if (this.mode === "Global") {
+      Bus.$emit("cmbs-brush", null);
+      this.brushCmbs = null;
+    } else {
+      Bus.$emit("detail-cmbs-brush", null);
+      this.detailedBrush = null;
+    }
     this.renderChart();
   }
 
@@ -162,7 +149,13 @@ export default class ParallelCoordinate extends Vue {
     data.forEach(d => {
       let keys = Object.keys(d);
       keys.forEach(key => {
-        if (key === "rank" || key === "cmbtargets") return;
+        if (
+          key === "rank" ||
+          key === "cmbtargets" ||
+          key === "adgroupids" ||
+          key === "aids"
+        )
+          return;
         let value: any = d[key];
         if (!Number.isInteger(+value)) {
           if (key === "ctr") value = +value.toFixed(5);
@@ -173,48 +166,49 @@ export default class ParallelCoordinate extends Vue {
     });
   }
 
-  @Watch("detailedLoaded")
-  watchDetailedLoaded(nVal: any) {
-    if (nVal === false) return;
-    this.preprocess(this.detailedData);
-    this.mode = "Detail";
-    this.renderChart();
-  }
+  @Getter("detailLoaded")
+  detailLoaded!: boolean;
 
   indexes: string[] = [];
-  data: any[] = [];
+  data: any = [];
   selectedCmb: any = null;
   mode: string = "Global";
   brushCmbs: any = null;
+  detailedBrush: any = null;
 
-  @Action("getDetailAction", { namespace: "parallelCoordinate" })
-  getDetail(message: string) {}
-
-  initFilter(op: any) {
+  initState(op: any) {
     this.indexes = op.indexes;
-    this.data = op.data;
     this.mode = op.mode;
-    this.detailedData = op.detailedData;
     if (this.mode === "Global") {
+      this.data = op.data;
+      this.detailedData = null;
       this.selectedCmb = op.selectedCmb;
-      this.brushCmbs = op.brushCmbs;
+      this.brushCmbs = op.brushedCmbs;
+    } else {
+      this.data = null;
+      this.detailedData = op.detailedData;
     }
+    this.detailedBrush = null;
   }
 
   handleCoordinate() {
+    Bus.$on("send-data", (message: any) => {
+      this.initState(message);
+      this.renderChart();
+    });
     Bus.$on("select-cmb", (message: TargetingInfo[] | null) => {
       this.selectedCmb = message;
-      this.mode = "Global";
       if (this.chart == null) return;
       this.renderChart();
     });
     Bus.$on("alert-select-cmb", () =>
       this.$message({ type: "info", message: "请先取消定向组合选择" })
     );
-    Bus.$on("cmbs-brush", (message: any) => (this.brushCmbs = message));
-    Bus.$on("get-detail", (message: string) => {
-      // this.mode = "Detail";
-      this.getDetail(message);
+    Bus.$on("cmbs-brush", (message: any) => {
+      if (this.mode === "Global") this.brushCmbs = message;
+    });
+    Bus.$on("detail-cmbs-brush", (message: any) => {
+      this.detailedBrush = message;
     });
   }
 }

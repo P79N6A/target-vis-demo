@@ -1,7 +1,7 @@
 <template>
   <div class="global-control-panel">
     <div class="panel">
-      <span class="view-name">Filter</span>
+      <span class="view-name">筛选器</span>
       <span class="active">
         <i v-if="!templateLoaded || !typesLoaded" class="el-icon-loading"></i>
       </span>
@@ -34,7 +34,7 @@
                 ></el-option>
               </el-select>
             </el-form-item>
-            <el-form-item label="行业">
+            <el-form-item label="行业:">
               <el-select
                 :placeholder="form.industry.length === 0 ? '搜索或选择行业' : ''"
                 filterable
@@ -136,7 +136,7 @@
                 </el-col>
               </el-row>
             </el-form-item>
-            <!-- <el-form-item label="Freq:">
+            <el-form-item label="Target-Freq:">
               <el-row>
                 <el-col :span="11">
                   <el-input v-model="form.freq.lower"></el-input>
@@ -146,7 +146,7 @@
                   <el-input v-model="form.freq.upper"></el-input>
                 </el-col>
               </el-row>
-            </el-form-item>-->
+            </el-form-item>
             <el-form-item>
               <el-button @click="reset">重置</el-button>
               <el-button @click="onSubmit" type="primary">确认</el-button>
@@ -253,7 +253,7 @@ export default class GlobalControlPanel extends Vue {
   reset() {
     let oldForm = JSON.parse(this.formStr);
     this.form = Object.assign({}, oldForm);
-    (this.$refs["form"] as any).resetFields();
+    // (this.$refs["form"] as any).resetFields();
   }
 
   onSubmit() {

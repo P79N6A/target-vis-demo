@@ -109,38 +109,6 @@ export default class CombinationTargetChart {
             return Object.assign({ content, textFill, leftPos });
         });
         Bus.$emit('paint-titles', result);
-        // this.titleContainer.removeAll();
-        // // targets = targets.filter(target => this.filteredIds.findIndex(item => item.id === target.id) === -1);
-        // targets.forEach((d, i) => {
-        //     let content: string = "";
-        //     let textFill: string = "";
-        //     let isAndTarget = this.and.indexOf(d.id) !== -1;
-        //     let isOrTarget = this.or.indexOf(d.id) !== -1;
-        //     let isFiltered = this.filteredIds.findIndex(item => item.id === d.id) !== -1;
-        //     if (isAndTarget === true) {
-        //         content = `${d.name} *`;
-        //         textFill = '#409EFF';
-        //     } else if (isOrTarget) {
-        //         content = `${d.name}`;
-        //         textFill = 'red';
-        //     } else if (isFiltered) {
-        //         content = d.name;
-        //         textFill = "gray";
-        //     } else {
-        //         content = d.name;
-        //         textFill = "#000";
-        //     }
-        //     let text = new zrender.Text({
-        //         name: d.name,
-        //         style: { text: content, textFill: textFill, textAlign: 'left', textVerticalAlign: 'middle' },
-        //         rotation: Math.PI / 4,
-        //         position: [Math.round((this.xScale(d.name) as number) + this.xScale.bandwidth() / 2), this.marginTop - 10]
-        //         // , zlevel: 2,
-        //     });
-        //     // this.zr.configLayer(2, { width: this.width, height: 30 })
-        //     this.titleContainer.add(text);
-        // });
-        // this.zr.addHover(this.titleContainer);
     }
     paintBar(data: CombinationData[], ) {
         this.container.removeAll();

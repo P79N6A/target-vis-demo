@@ -1,9 +1,8 @@
 <template>
   <div :class="className">
-    <el-steps :direction="direction">
+    <el-steps :direction="direction" :active="index">
       <el-step
-        @click.native="handleClick(idx)"
-        :status="o.key !== index ? 'wait' : 'finish'"
+        @click.native="handleClick(o)"
         v-for="(o, idx) in data"
         :key="idx"
         :title="o.type"
@@ -25,10 +24,8 @@ export default class OpLog extends Vue {
   @Prop({ required: true })
   direction!: string;
 
-  handleClick(index: number) {
-    let operation = this.data[index];
-    if (index === this.index) return;
-    this.$emit("change-op", operation.key);
+  handleClick(op: any) {
+    this.$emit("change-op", op);
   }
 }
 </script>
