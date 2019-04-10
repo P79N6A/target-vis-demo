@@ -102,14 +102,11 @@ export default class PortraitChart {
 
     loadData(data: any[], targets: TargetingInfo[], index: string, activeId: null | TargetingInfo, filteredIds: TargetingInfo[] | null) {
 
-
         this.data = data;
-        this.data = this.data.filter((d: any) => d.pattern != null);
+        this.data = this.data;
         this.targets = targets;
         this.activeId = activeId == null ? null : activeId.id;
         this.filteredIds = filteredIds == null ? [] : filteredIds;
-
-
         this.index = index.toLowerCase();
         this.data.sort((a: any, b: any) => b[this.index] - a[this.index]);
         this.brushXScale.domain(this.data.map((d: any) => d.name));
@@ -183,7 +180,7 @@ export default class PortraitChart {
                 style: {
                     stroke: '#000', text: d,
                     truncate: {
-                        outerWidth: Math.round(this.xScale.bandwidth() - 20)
+                        outerWidth: Math.round(this.brushXScale.bandwidth() - 20)
                     },
                     textAlign: 'center', textPosition: [0, 8]
                 }

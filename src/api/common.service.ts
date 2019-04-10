@@ -15,63 +15,79 @@ export default class CommonService {
 
     loadTemplate<T>(payload: any) {
         return this.httpModule.post('/updtemplate', payload)
+            .then(res => res.data)
+            .then((res: any) => res.data.template);
     }
 
     getAdsData(payload: string) {
         return this.httpModule.post('/adsdata', Object.assign({ adgroupids: payload }));
     }
 
+    getTargetFreq(payload: any) {
+        return this.httpModule.post('/getpattern', payload);
+    }
+
     getDetail(payload: any) {
         let adgroupids = payload.adgroupids;
         adgroupids = adgroupids.split(",").map((a: any) => "'" + a + "'").join(",");
+        let newCondition = Object.assign(Object.assign({}, payload, { adgroupids }));
+        let moreDetail = Object.assign({
+            filter: {},
+            adgroupids,
+            ids: []
+        });
         return Promise.all([
-            this.httpModule.post('/condicmbdata', Object.assign({ ids: payload.ids, adgroupids, condition: 'site_set' })),
-            this.httpModule.post('/condicmbdata', Object.assign({ ids: payload.ids, adgroupids, condition: 'industry_id' })),
-            this.httpModule.post('/condicmbdata', Object.assign({ ids: payload.ids, adgroupids, condition: 'ad_platform_type' })),
-            this.httpModule.post('/condicmbdata', Object.assign({ ids: payload.ids, adgroupids, condition: 'product_type' })),
-            this.httpModule.post('/adsdata', Object.assign({ adgroupids }))
-        ]).then(res => Object.assign({
-            portrait: Object.assign({
-                site_set: res[0].data,
-                industry_id: res[1].data,
-                ad_platform_type: res[2].data,
-                product_type: res[3].data
-            }),
-            ads: res[4].data
-        }))
+            this.httpModule.post('/condicmbdata', newCondition),
+            this.httpModule.post('/adsdata', Object.assign({ adgroupids })),
+            this.httpModule.post('/condicmbdata', moreDetail)
+        ]).then((res: any) => {
+            return Object.assign({
+                portrait: Object.assign({
+                    siteSet: res[0].data.data['site_set'],
+                    industry: res[0].data.data['industry_id'],
+                    platform: res[0].data.data['ad_platform_type'],
+                    prodType: res[0].data.data['product_type'],
+                }),
+                ads: res[1].data.data
+            });
+        }).catch(error => {
+            console.error(error);
+            return null;
+        });
     }
 
     loadAllState(payload: any) {
         let result: any = {};
-        let adgroupids = "";
         return this.httpModule.post('/calrelandcmbdata', payload)
             .then(res => res.data)
+            .then((res: any) => res.data)
             .then((res: any) => {
                 let cmbs = res.cmbs;
                 let relations = res.relations;
                 result['relations'] = relations;
                 result['combinations'] = cmbs;
-                adgroupids = cmbs.map((d: any) => d.adgroupids).join("");
-                return Promise.all([
-                    this.httpModule.post('/condicmbdata', Object.assign({ adgroupids, ids: payload.ids, condition: 'site_set' })),
-                    this.httpModule.post('/condicmbdata', Object.assign({ adgroupids, ids: payload.ids, condition: 'industry_id' })),
-                    this.httpModule.post('/condicmbdata', Object.assign({ adgroupids, ids: payload.ids, condition: 'ad_platform_type' })),
-                    this.httpModule.post('/condicmbdata', Object.assign({ adgroupids, ids: payload.ids, condition: 'product_type' })),
-                ]);
-            }).then(res => res.map(res => res.data))
-            .then(res => {
+                let newCondition = Object.assign({ adgroupids: "" }, payload);
+                return this.httpModule.post('/condicmbdata', newCondition).then(res => res.data);
+            })
+            .then((res: any) => {
+                let data = res.data;
                 result['portrait'] = Object.assign({
-                    'site_set': res[0],
-                    'industry_id': res[1],
-                    'ad_platform_type': res[2],
-                    'product_type': res[3]
-                })
+                    'siteSet': data['site_set'],
+                    'industry': data['industry_id'],
+                    'platform': data['ad_platform_type'],
+                    'prodType': data['product_type']
+                });
                 return result;
-            });
+            }).catch(error => {
+                console.error(error);
+                return null;
+            })
     }
 
     getTypes() {
-        return this.httpModule.get('/template');
+        return this.httpModule.get('/gettype')
+            .then(res => res.data)
+            .then((res: any) => res.data);
     }
     getGlobalFilterTemplate() {
         return this.httpModule.get('/template');

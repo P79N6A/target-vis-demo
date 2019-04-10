@@ -1,23 +1,23 @@
 <template>
   <div
     class="portrait chart-container"
-    v-loading="!systemLoaded || !detailLoaded"
+    v-loading="!systemLoaded || !detailLoaded || !targetFreqLoaded"
     :element-loading-text="loadingText"
   >
     <div class="panel">
       <span class="view-name">广告指标图 ({{controlState.mode === 'Global' ? '全局' : '定向组合限定'}})</span>
       <el-dropdown trigger="click" @command="handleTypeClick">
-        <el-button type="text">{{controlState.types}}维度</el-button>
+        <el-button type="text">{{typeStr}}维度</el-button>
         <el-dropdown-menu slot="dropdown">
-          <el-dropdown-item command="流量">流量</el-dropdown-item>
-          <el-dropdown-item command="行业">行业</el-dropdown-item>
-          <el-dropdown-item command="产品类型">产品类型</el-dropdown-item>
-          <el-dropdown-item command="平台">平台</el-dropdown-item>
+          <el-dropdown-item command="siteSet">流量</el-dropdown-item>
+          <el-dropdown-item command="industry">行业</el-dropdown-item>
+          <el-dropdown-item command="prodType">产品类型</el-dropdown-item>
+          <el-dropdown-item command="platform">平台</el-dropdown-item>
         </el-dropdown-menu>
       </el-dropdown>
 
       <el-dropdown trigger="click" @command="handleMenuClick">
-        <el-button type="text">{{controlState.index}}</el-button>
+        <el-button type="text">{{index}}</el-button>
         <el-dropdown-menu slot="dropdown">
           <el-dropdown-item command="Freq">Freq</el-dropdown-item>
           <el-dropdown-item v-if="controlState.mode === 'Global'" command="Target-Freq">Target-Freq</el-dropdown-item>
@@ -29,7 +29,11 @@
           <el-dropdown-item command="Cpc">Cpc</el-dropdown-item>
         </el-dropdown-menu>
       </el-dropdown>
-      <span>人群定位（待定）</span>
+      <span
+        @click="handleMoreDetail"
+        class="active"
+        v-if="controlState.mode === 'Detail'"
+      >{{!moreDetail ? '打开' : '关闭'}}人群定位</span>
       <span class="fill-space"></span>
     </div>
     <div class="chart"></div>
@@ -53,22 +57,35 @@ export default class Portrait extends Vue {
   chart!: PortraitChart;
 
   detailedData!: any;
+  moreDetail: boolean = false;
 
   @Getter("systemLoaded")
   systemLoaded!: boolean;
   @Getter("detailLoaded")
   detailLoaded!: boolean;
+  @Getter("targetFreqLoaded")
+  targetFreqLoaded!: boolean;
 
   get typeStr() {
-    if (this.controlState.types === "流量") return "site_set";
-    if (this.controlState.types === "行业") return "industry_id";
-    if (this.controlState.types === "产品类型") return "product_type";
-    if (this.controlState.types === "平台") return "ad_platform_type";
+    if (this.controlState.mode === "Global") {
+      if (this.controlState.types === "siteSet") return "流量";
+      if (this.controlState.types === "industry") return "行业";
+      if (this.controlState.types === "prodType") return "产品类型";
+      if (this.controlState.types === "platform") return "平台";
+    } else {
+      if (this.types === "siteSet") return "流量";
+      if (this.types === "industry") return "行业";
+      if (this.types === "prodType") return "产品类型";
+      if (this.types === "platform") return "平台";
+    }
+
+    return "";
   }
 
   get loadingText() {
     if (this.systemLoaded === false) return "Loading...";
     if (this.detailLoaded === false) return "加载详情数据...";
+    if (this.targetFreqLoaded === false) return "加载定向频次数据...";
     else return "";
   }
 
@@ -97,11 +114,18 @@ export default class Portrait extends Vue {
       return;
     this.controlState.mode = "Detail";
     this.detailedData = this.currentState.portraitState.detailedData;
-    this.controlState.index === "Target-Freq"
-      ? "Freq"
-      : this.controlState.index;
+    this.index = "Freq";
+    this.types = "siteSet";
     this.renderChart();
   }
+
+  @Watch("targetFreqLoaded")
+  watchTargetFreqLoaded(nVal: boolean) {
+    if (nVal === false) return;
+    this.renderChart();
+  }
+
+  handleMoreDetail() {}
 
   handleCoordinate() {
     Bus.$on("highlight-target", (message: any) => {
@@ -116,62 +140,43 @@ export default class Portrait extends Vue {
     });
     Bus.$on("change-global", () => {
       this.controlState.mode = "Global";
-      this.controlState.index = "Freq";
+      this.index = this.controlState.index;
+      this.types = this.controlState.types;
       this.detailedData = null;
       this.renderChart();
     });
-    // Bus.$on("select-cmb", () => {
-    //   if (this.controlState.mode === "Detail") {
-    //     this.controlState.mode = "Global";
-    //     this.controlState.index = "Freq";
-    //     this.detailedData = null;
-    //     this.renderChart();
-    //   }
-    // });
   }
+
+  @Action("loadTargetFreq")
+  loadTargetFreq(payload: any) {}
 
   // 切换行业、产品类型、流量等
   handleTypeClick(command: string) {
-    this.controlState.types = command;
-    this.controlState.condition = this.typeStr;
-    this.renderChart();
-  }
+    if (command == this.types) return;
+    this.types = command;
+    if (this.controlState.mode !== "Detail") this.controlState.types = command;
 
-  controlState: any = {};
-
-  renderChart() {
-    if (this.controlState.mode === "Global")
-      this.chart.loadData(
-        this.data[this.controlState.condition as any],
-        this.ids,
-        this.controlState.index,
-        this.highlightedTarget,
-        this.filteredTargets
-      );
-    else
-      this.chart.loadData(
-        this.detailedData[this.controlState.condition as any],
-        this.ids,
-        this.controlState.index,
-        this.highlightedTarget,
-        this.filteredTargets
-      );
+    this.fixTargetFreq();
   }
 
   handleMenuClick(command: string) {
-    this.controlState.index = command
-      .replace(/^([a-z])/, ($1: string) => $1.toUpperCase())
-      .replace(/-([a-z])/, ($1: string) => $1.toUpperCase());
+    if (this.index == command) return;
+    this.index = command;
+    // 详情模式下不更改types与index
+    if (this.controlState.mode !== "Detail") this.controlState.index = command;
     if (this.currentState == null) return;
-    this.renderChart();
+    this.fixTargetFreq();
   }
 
-  data: any = null;
-  ids: TargetingInfo[] = [];
+  index: string = "";
+  types: string = "";
+  condition: string = "";
 
   initState(op: any) {
     // 当前视图所要展示的指标
     this.controlState = Object.assign({}, op.portraitState.controlState);
+    this.index = this.controlState.index;
+    this.types = this.controlState.types;
     // 当前是否有需要高亮的定向
     this.highlightedTarget = op.highlightedTarget;
     // 是否有被过滤的定向
@@ -180,6 +185,58 @@ export default class Portrait extends Vue {
     this.ids = op.targets;
     this.detailedData = op.portraitState.detailedData;
   }
+
+  // 如果当前维度下没有加载对应的定向频次,则需要尝试加载
+  fixTargetFreq() {
+    if (
+      this.controlState.mode === "Global" &&
+      this.controlState.index === "Target-Freq"
+    ) {
+      let map: any = {
+        siteSet: "site_set",
+        platform: "ad_platform_type",
+        prodType: "product_type",
+        industry: "industry_id"
+      };
+      let index = this.controlState.types;
+      let tmpData = this.currentState.portraitState.data[index];
+      let hasPattern = tmpData.some((item: any) => item.pattern != null);
+      if (hasPattern === true) this.renderChart();
+      else
+        this.loadTargetFreq(
+          Object.assign({
+            ids: this.ids.map((item: any) => item.id),
+            condition: map[index]
+          })
+        );
+    } else {
+      this.renderChart();
+    }
+  }
+
+  controlState: any = {};
+
+  renderChart() {
+    if (this.controlState.mode === "Global")
+      this.chart.loadData(
+        this.data[this.controlState.types],
+        this.ids,
+        this.controlState.index,
+        this.highlightedTarget,
+        this.filteredTargets
+      );
+    else
+      this.chart.loadData(
+        this.detailedData[this.types],
+        this.ids,
+        this.index,
+        this.highlightedTarget,
+        this.filteredTargets
+      );
+  }
+
+  data: any = null;
+  ids: TargetingInfo[] = [];
 }
 </script>
 <style>

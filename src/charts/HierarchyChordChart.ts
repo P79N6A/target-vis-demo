@@ -187,7 +187,7 @@ export default class HierarchyChordChart {
         this.width = this.zr.getWidth();
         this.height = this.zr.getHeight();
         this.origin = [Math.round(this.width / 2) - 50, Math.round(this.height / 2)];
-        this.radius = Math.round(Math.min(this.origin[0], this.origin[1]) * 0.8);
+        this.radius = Math.round(Math.min(this.origin[0], this.origin[1]) * 0.7);
         this.chartContainer.attr('position', [...this.origin]);
     }
 

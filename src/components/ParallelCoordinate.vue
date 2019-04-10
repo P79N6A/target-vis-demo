@@ -201,9 +201,10 @@ export default class ParallelCoordinate extends Vue {
       if (this.chart == null) return;
       this.renderChart();
     });
-    Bus.$on("alert-select-cmb", () =>
-      this.$message({ type: "info", message: "请先取消定向组合选择" })
-    );
+    Bus.$on("alert-select-cmb", () => {
+      let self: any = this;
+      self.$message({ type: "info", message: "请先取消定向组合选择" });
+    });
     Bus.$on("cmbs-brush", (message: any) => {
       if (this.mode === "Global") this.brushCmbs = message;
     });

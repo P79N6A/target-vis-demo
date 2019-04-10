@@ -22,21 +22,21 @@ export function buildTree(raw: TargetingTreeNode[]): TargetingTreeNode {
     return root;
 }
 
-export function getTreeNodes(root: TargetingTreeNode) {
+export function getTreeNodes(root: TargetingTreeNode, freqLimit: any) {
+    let queue: TargetingTreeNode[] = [];
+    queue.push(root);
+    while (queue.length !== 0) {
+        let front = queue.shift();
+        if (front == null) return [];
+        if (front.level > 1 && (front.freq < freqLimit.lower || front.freq > freqLimit.upper)) {
+            (front as any).disabled = true;
+        }
+        let children = front.children;
+        for (let child of children) {
+            queue.push(child);
+        }
+    }
     return root.children;
-    return [Object.assign({ name: root.name, isLeaf: false, freq: root.freq })];
-    // let queue: TargetingTreeNode[] = [root];
-    // let result: any[] = []
-    // while (queue.length !== 0) {
-    //     let node = queue.shift() as TargetingTreeNode;
-    //     let children = node.children;
-    //     children.forEach(child => {
-    //         if (child.level === level && child.parentName === parentName)
-    //             result.push(Object.assign({ freq: child.freq, name: child.name, isLeaf: child.children.length === 0 }));
-    //         if (child.level <= level) queue.push(child);
-    //     });
-    // }
-    // return result;
 }
 
 export function getInitTargetingIds(tree: TargetingTreeNode, freqLimit: any, filters: string[] = ['6', '7', '8']) {
@@ -116,4 +116,25 @@ export function transformPostData(globalFilter: FilterForm, types: Types) {
         });
     return filter;
 
+}
+
+export function transformPortraitResult(types: any, data: any) {
+    let map: any = {
+        'siteSet': 'site_set',
+        'platform': 'ad_platform_type',
+        'prodType': 'product_type',
+        'industry': 'industry_id'
+    };
+    Object.keys(data).forEach(key => {
+        let dict = types[key];
+        let tmpData = data[key];
+        tmpData.forEach((item: any) => {
+            let result = dict.find((s: any) => s.value == item[map[key]]);
+            if (result != null) {
+                item.name = result.label;
+            } else {
+                item.name = "Unknown"
+            }
+        });
+    });
 }

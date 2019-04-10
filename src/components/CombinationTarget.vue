@@ -69,7 +69,7 @@
       <span
         :class="{ active: selectedCmb != null  }"
         @click="handleDetail"
-      >切换为{{mode !== 'Global' ? '全局' : '详情'}}模式</span>
+      >切换对应视图为{{mode !== 'Global' ? '全局' : '详情'}}模式</span>
       <span class="fill-space"></span>
     </div>
     <div v-show="titles" class="title-container">

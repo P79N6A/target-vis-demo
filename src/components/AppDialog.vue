@@ -1,5 +1,5 @@
 <template>
-  <el-dialog :before-close="beforeClose" title="Save" width="20%" :visible.sync="showDialog">
+  <el-dialog :before-close="beforeClose" title="保存方案（待定）" width="20%" :visible.sync="showDialog">
     <el-form :label-position="'right'" :label-width="'100px'">
       <el-form-item label="方案名称:">
         <el-input></el-input>

@@ -197,7 +197,7 @@ body {
 .panel {
   display: flex;
   height: 30px;
-  padding: 0 20px;
+  padding: 0 5px;
   align-items: center;
   border-bottom: 1px solid #d2d2d2;
 }
@@ -205,7 +205,7 @@ body {
 .panel > span {
   color: #d2d2d2;
   cursor: pointer;
-  padding: 0 10px;
+  padding: 0 5px;
   font-size: 12px;
 }
 .panel span.view-name {

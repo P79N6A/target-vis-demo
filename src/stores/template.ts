@@ -26,8 +26,7 @@ const actions: ActionTree<TemplateState, RootState> = {
     async getTemplateAction({ commit, dispatch, rootGetters }) {
         commit('templateLoadedMutation', false);
         let filter = transformPostData(rootGetters['globalFilter'], rootGetters['types/types']);
-        let result: any = await service.loadTemplate(Object.assign({ filter }))
-            .then(res => res.data);
+        let result: any = await service.loadTemplate(Object.assign({ filter }));
         commit('templateMutation', result);
         commit('templateLoadedMutation', true);
     }

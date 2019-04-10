@@ -15,13 +15,12 @@
       ></el-switch>
       <span v-if="enterFullScreen" @click="handlePan" :class="{active: panable}">缩放/平移</span>
       <span v-if="enterFullScreen" @click="handleResetChart" :class="{active: panable}">还原缩放/平移</span>
-      
-      <span class="active" v-if="!enterFullScreen && currentLog != null">
-        <el-popover trigger="click">
-          <el-steps :active="currentLog.data.findIndex(d => d.key === currentLog.step) + 1">
+
+      <!-- <span class="active" v-if="!enterFullScreen && currentLog != null">
+        <el-popover :width="400" trigger="click">
+          <el-steps>
             <el-step
-              @click.native="handleChangeOp2(log)"
-              v-for="(log, index) in currentLog.data"
+              v-for="(log, index) in currentLog"
               :title="log.type"
               :description="log.message"
               :key="index"
@@ -29,19 +28,20 @@
           </el-steps>
           <i class="el-icon-document" slot="reference"></i>
         </el-popover>
-      </span>
+      </span>-->
       <span :class="{active: highlightedTarget != null}">被选中的定向</span>
+
       <span class="fill-space"></span>
       <span class="active" @click="fullscreen">全屏</span>
     </div>
-    <op-log
+    <!-- <op-log
       :direction="'vertical'"
       :className="'op-log'"
       :index="currentLog.data.findIndex(item => item.key === currentLog.step) + 1"
       @change-op="handleChangeOp2"
       v-if="enterFullScreen"
       :data="currentLog.data"
-    ></op-log>
+    ></op-log>-->
     <div class="chart"></div>
   </div>
 </template>
@@ -76,6 +76,8 @@ export default class HierarchyChord extends Vue {
   data: any = [];
   ids: TargetingInfo[] = [];
 
+  confirmCount: number = 1;
+
   controlState: any = {};
 
   @Getter("systemLoaded")
@@ -88,23 +90,30 @@ export default class HierarchyChord extends Vue {
 
   @Mutation("changeCurrentOpLogPointer")
   changeCurrentOpLogPointer(payload: any) {}
+  @Mutation("changeCurrentLogPointer")
+  changeCurrentLogPointer(payload: number) {}
 
-  handleChangeOp2(op: any) {
-    this.changeCurrentOpLogPointer(op.key);
-  }
+  // handleChangeOp2(op: any) {
+  //   if (this.confirmCount == 1)
+  //     this.$confirm(
+  //       "切换至其他步骤将不会保存您在当前步骤所做更改,是否仍然进行切换? (仅提示一次)",
+  //       "提示",
+  //       {
+  //         confirmButtonText: "确定",
+  //         cancelButtonText: "取消"
+  //       }
+  //     ).then(() => {
+  //       this.confirmCount--;
+  //       this.changeCurrentOpLogPointer(op.key);
+  //     });
+  //   else this.changeCurrentOpLogPointer(op.key);
+  // }
 
   handleIndexChange(condition: boolean) {
     this.index = condition;
     this.controlState.index = condition === true ? "freq" : "cost";
     this.renderChart();
   }
-
-  @Getter("loaded", { namespace: "relation" })
-  loaded!: boolean;
-  @Getter("loaded", { namespace: "combination" })
-  combinationLoaded!: boolean;
-  @Getter("loaded", { namespace: "portrait" })
-  portraitLoaded!: boolean;
 
   @Getter("template", { namespace: "template" })
   template!: TargetingTreeNode;
@@ -150,6 +159,9 @@ export default class HierarchyChord extends Vue {
   @Getter("currentOpLog")
   currentState!: any;
 
+  @Getter("logPointerStatus")
+  logPointerStatus!: any;
+
   @Watch("currentState")
   watchCurrentOpLog(nVal: any) {
     if (nVal == null) return;
@@ -167,7 +179,11 @@ export default class HierarchyChord extends Vue {
         this.globalFilter
       );
       if (result.length === 0) {
-        this.$message({ type: "info", message: "当前被下钻的定向已无子定向" });
+        let self: any = this;
+        self.$message({
+          type: "info",
+          message: "当前被下钻的定向已无符合定向频次条件的子定向"
+        });
         return;
       }
       let index = drilldown.ids.findIndex(
@@ -186,9 +202,10 @@ export default class HierarchyChord extends Vue {
       if (this.currentState == null) return;
       this.renderChart();
     });
-    Bus.$on("alert-send-cmb", () =>
-      this.$message({ type: "info", message: "请先取消定向组合选择" })
-    );
+    Bus.$on("alert-send-cmb", () => {
+      let self: any = this;
+      self.$message({ type: "info", message: "请先取消定向组合选择" });
+    });
   }
   // 进入全屏
   fullscreen() {

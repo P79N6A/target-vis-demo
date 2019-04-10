@@ -20,9 +20,8 @@ const namespaced: boolean = true;
 const actions: ActionTree<TypesState, RootState> = {
     async getTypesAction({ commit }) {
         commit('typesLoadedMutation', false);
-        let result: any = await service.getTypes()
-            .then(res => res.data);
-        commit('typesMutation', result.types);
+        let result: any = await service.getTypes();
+        commit('typesMutation', result);
         commit('typesLoadedMutation', true);
     }
 };
@@ -32,7 +31,7 @@ const mutations: MutationTree<TypesState> = {
         (store.types as any) = {};
         (store.types as any).siteSet = payload['site_set'];
         (store.types as any).platform = payload['ad_platform_type'];
-        (store.types as any).industry = payload['industry_id'];
+        (store.types as any).industry = payload['industry'];
         (store.types as any).prodType = payload['product_type'];
     },
     typesLoadedMutation(store, payload: boolean) { store.typesLoaded = payload }
