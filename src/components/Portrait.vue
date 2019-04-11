@@ -201,11 +201,17 @@ export default class Portrait extends Vue {
       let index = this.controlState.types;
       let tmpData = this.currentState.portraitState.data[index];
       let hasPattern = tmpData.some((item: any) => item.pattern != null);
+
       if (hasPattern === true) this.renderChart();
       else
         this.loadTargetFreq(
           Object.assign({
-            ids: this.ids.map((item: any) => item.id),
+            ids: this.ids
+              .filter(
+                id =>
+                  (id as any).default === true && (id as any).disabled === false
+              )
+              .map((item: any) => item.id),
             condition: map[index]
           })
         );

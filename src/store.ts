@@ -98,6 +98,7 @@ const store: StoreOptions<RootState> = {
 
     async loadAllState({ rootGetters, commit }, payload: any) {
       let currentRequestId = ++requestId;
+      // 每次发送前将所有加载状态设置为false
       commit('systemLoadedMutation', false);
       commit('detailedLoadedMutation', false);
       commit('targetFreqLoadedMutation', false);
@@ -107,20 +108,29 @@ const store: StoreOptions<RootState> = {
       else ids = getInitTargetingIds(rootGetters['template/template'], rootGetters['globalFilter']);
 
       let filter = transformPostData(rootGetters['globalFilter'], rootGetters['types/types']);
-      let result = await service.loadAllState(Object.assign({ filter, ids: ids.map(id => id.id), and: [], or: [], patterns: [] }));
+      let result = await service.loadAllState(Object.assign({
+        filter,
+        ids: ids.filter(id => (id as any).default === true && (id as any).disabled === false).map(id => id.id),
+        and: [],
+        or: [],
+        patterns: []
+      }));
+      // 如果发出了多次请求,那么根据currentRequestId与requestId判断是否为想要接收的请求
       if (currentRequestId != requestId) return;
+      // 数据加载出错
       if (result == null) {
         alert("全局数据加载出错!");
         return;
       }
-
+      // 将广告主画像数据转换
       transformPortraitResult(rootGetters['types/types'], result.portrait);
+      // 如果当前进行的是下钻操作,则需要将对下钻前状态做出的修改进行保存
       if (payload.type !== 'Init' && payload.newOp != null)
         commit('saveCurrentOP', payload.newOp);
 
       commit('loadAllStateMutation', Object.assign({
         type: payload.type,
-        message: payload.type === 'Init' ? "初始" : '下钻-' + payload.message,
+        message: payload.type === 'Init' ? "新全局筛选" : payload.message,
         key: Date.now() + "",
         selectedCmb: null,
         filteredTargets: null,

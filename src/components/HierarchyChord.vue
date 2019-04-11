@@ -16,32 +16,10 @@
       <span v-if="enterFullScreen" @click="handlePan" :class="{active: panable}">缩放/平移</span>
       <span v-if="enterFullScreen" @click="handleResetChart" :class="{active: panable}">还原缩放/平移</span>
 
-      <!-- <span class="active" v-if="!enterFullScreen && currentLog != null">
-        <el-popover :width="400" trigger="click">
-          <el-steps>
-            <el-step
-              v-for="(log, index) in currentLog"
-              :title="log.type"
-              :description="log.message"
-              :key="index"
-            ></el-step>
-          </el-steps>
-          <i class="el-icon-document" slot="reference"></i>
-        </el-popover>
-      </span>-->
-      <span :class="{active: highlightedTarget != null}">被选中的定向</span>
-
       <span class="fill-space"></span>
       <span class="active" @click="fullscreen">全屏</span>
     </div>
-    <!-- <op-log
-      :direction="'vertical'"
-      :className="'op-log'"
-      :index="currentLog.data.findIndex(item => item.key === currentLog.step) + 1"
-      @change-op="handleChangeOp2"
-      v-if="enterFullScreen"
-      :data="currentLog.data"
-    ></op-log>-->
+
     <div class="chart"></div>
   </div>
 </template>
@@ -92,22 +70,6 @@ export default class HierarchyChord extends Vue {
   changeCurrentOpLogPointer(payload: any) {}
   @Mutation("changeCurrentLogPointer")
   changeCurrentLogPointer(payload: number) {}
-
-  // handleChangeOp2(op: any) {
-  //   if (this.confirmCount == 1)
-  //     this.$confirm(
-  //       "切换至其他步骤将不会保存您在当前步骤所做更改,是否仍然进行切换? (仅提示一次)",
-  //       "提示",
-  //       {
-  //         confirmButtonText: "确定",
-  //         cancelButtonText: "取消"
-  //       }
-  //     ).then(() => {
-  //       this.confirmCount--;
-  //       this.changeCurrentOpLogPointer(op.key);
-  //     });
-  //   else this.changeCurrentOpLogPointer(op.key);
-  // }
 
   handleIndexChange(condition: boolean) {
     this.index = condition;
@@ -171,32 +133,11 @@ export default class HierarchyChord extends Vue {
 
   // 处理联动
   handleCoordinate() {
-    Bus.$on("drilldown", (message: any) => {
-      let drilldown = message.drilldown;
-      let result = getNextLevelTargets(
-        this.template,
-        drilldown.clicked.id,
-        this.globalFilter
-      );
-      if (result.length === 0) {
-        let self: any = this;
-        self.$message({
-          type: "info",
-          message: "当前被下钻的定向已无符合定向频次条件的子定向"
-        });
-        return;
-      }
-      let index = drilldown.ids.findIndex(
-        (c: any) => c.id === drilldown.clicked.id
-      );
-      drilldown.ids.splice(index, 1, ...result);
-      Bus.$emit("drilldown-addState", message);
-    });
     Bus.$on(
       "highlight-target",
       (message: any) => (this.highlightedTarget = message)
     );
-    Bus.$on("filter-targets", (message: any) => (this.filteredIds = message));
+    // Bus.$on("filter-targets", (message: any) => (this.filteredIds = message));
     Bus.$on("select-cmb", (message: TargetingInfo[] | null) => {
       this.cmbs = message;
       if (this.currentState == null) return;

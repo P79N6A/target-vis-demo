@@ -10,7 +10,7 @@ export function init() {
                 platform: [],
                 prodType: [],
                 industry: ['游戏'],
-                freq: { lower: 0, upper: 999999999999 },
+                freq: { lower: 10, upper: 999999999999 },
                 click: { lower: 0, upper: 999999999999 },
                 cpc: { lower: 0, upper: 999999999999 },
                 cost: { lower: 0, upper: 999999999999 },

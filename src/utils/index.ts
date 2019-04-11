@@ -3,9 +3,7 @@ import { FilterForm, RelationPostData, Types } from '@/models';
 
 export function buildTree(raw: TargetingTreeNode[]): TargetingTreeNode {
     let root: TargetingTreeNode | null = null;
-
     let map = new Map<string, TargetingTreeNode>();
-
     for (let node of raw) {
         map.set(node.id, Object.assign({}, { children: [], cost: node.cost, freq: node.freq, id: node.id, name: node.name, parentId: node.parentId, parentName: node.parentName, level: node.level }));
     }
@@ -22,31 +20,36 @@ export function buildTree(raw: TargetingTreeNode[]): TargetingTreeNode {
     return root;
 }
 
-export function getTreeNodes(root: TargetingTreeNode, freqLimit: any) {
-    let queue: TargetingTreeNode[] = [];
-    queue.push(root);
-    while (queue.length !== 0) {
-        let front = queue.shift();
-        if (front == null) return [];
-        if (front.level > 1 && (front.freq < freqLimit.lower || front.freq > freqLimit.upper)) {
-            (front as any).disabled = true;
+export function getTreeNodes(root: TargetingTreeNode, targets: TargetingInfo[], freq: any) {
+    let result = root.children.map(item => Object.assign({ freq: item.freq, id: item.id, level: item.level, name: item.name, isLeaf: false }));
+    let tmpTargets = targets.map((item: any) => Object.assign({ freq: item.freq, id: item.id, level: item.level, name: item.name, parentId: item.parentId, disabled: item.disabled, isLeaf: true, default: item.default }));
+    tmpTargets = tmpTargets.concat(result);
+    tmpTargets.forEach((target: any) => {
+        if ((target.freq < freq.lower || target.freq > freq.upper) && target.level > 1) target.disabled = true;
+        let parent: any = tmpTargets.find(t => t.id === target.parentId);
+        if (parent == null) return;
+        if (parent.children == null) {
+            parent.children = [];
+            parent.isLeaf = false;
         }
-        let children = front.children;
-        for (let child of children) {
-            queue.push(child);
-        }
-    }
-    return root.children;
+        parent.children.push(target);
+    });
+    return tmpTargets.filter(t => t.level === 1);
 }
 
+
+// 返回初始选择的定向
 export function getInitTargetingIds(tree: TargetingTreeNode, freqLimit: any, filters: string[] = ['6', '7', '8']) {
     let ids: any[] = [];
     let freq = freqLimit.freq;
     tree.children.forEach((node: any) => {
-        if (filters.indexOf(node.id) !== -1) return;
         node.children.forEach((n: any) => {
-            if (n.freq >= freq.lower)
-                ids.push(Object.assign({}, { id: n.id, name: n.name, level: n.level, freq: n.freq, cost: n.cost }))
+            let tmpTarget = Object.assign({ cost: n.cost, freq: n.freq, level: n.level, parentId: n.parentId, id: n.id, name: n.name });
+            if (tmpTarget.freq < freq.lower || n.freq > freq.upper) tmpTarget.disabled = true;
+            else tmpTarget.disabled = false;
+            if (filters.indexOf(tmpTarget.parentId) === -1) tmpTarget.default = true;
+            else tmpTarget.default = false;
+            ids.push(tmpTarget);
         });
     });
     return ids;
@@ -70,17 +73,23 @@ export function getTargets(tree: TargetingTreeNode, ids: string[]) {
 }
 
 export function getNextLevelTargets(template: TargetingTreeNode, parentId: string, globalFilter: any) {
-    let result: Array<TargetingInfo> = [];
     let freq = globalFilter.freq;
     let root = template.children.find((t) => t.id === parentId[0]);
+
     let len = 1;
     while (root != null && root.id != parentId) {
         len = len + 2;
         root = root.children.find((t) => t.id === parentId.substr(0, len))
     }
     if (root == null) return [];
-    return root.children.map(r => Object.assign({ id: r.id, name: r.name, level: r.level, freq: r.freq, cost: r.cost }))
-        .filter(t => t.freq >= freq.lower);
+
+    return root.children.map(r => {
+        let tmp = Object.assign({ parentId: r.parentId, id: r.id, name: r.name, level: r.level, freq: r.freq, cost: r.cost });
+        if (tmp.freq < freq.lower || tmp.freq > freq.upper) tmp.disabled = true;
+        else tmp.disabled = false;
+        tmp.default = true;
+        return tmp;
+    })
 }
 
 export function transformPostData(globalFilter: FilterForm, types: Types) {

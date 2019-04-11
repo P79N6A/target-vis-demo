@@ -176,8 +176,12 @@ export default class CombinationTarget extends Vue {
     let { and, or } = JSON.parse(this.orAndStr);
     this.and = and;
     this.or = or;
-    this.selectableAnd = this.ids.map(item => Object.assign({}, item));
-    this.selectableOr = this.ids.map(item => Object.assign({}, item));
+    this.selectableAnd = this.ids
+      .filter((id: any) => id.default === true && id.disabled === false)
+      .map(item => Object.assign({}, item));
+    this.selectableOr = this.ids
+      .filter((id: any) => id.default === true && id.disabled === false)
+      .map(item => Object.assign({}, item));
     this.and.forEach(
       item =>
         ((this.selectableOr.find(or => or.id === item) as any).disabled = true)

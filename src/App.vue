@@ -26,6 +26,7 @@ import { Mutation, Action, Getter } from "vuex-class";
 import { FilterForm, Types } from "@/models";
 import { TargetingInfo } from "@/models/targeting";
 import Bus from "@/charts/event-bus";
+import { getNextLevelTargets } from "@/utils";
 @Component({
   components: {
     HierarchyChord,
@@ -92,18 +93,42 @@ export default class App extends Vue {
   // 在每次刷新或打开浏览器时,应该先查找本地是否存在默认方案
   prepare() {
     let result = init();
-    // 将默认方案保存的状态推送至各个state
-    // this.restoreAllState(result.test);
     this.resolveState(result.globalState);
-    // // 开始请求模板
     this.getTypesAction();
   }
 
   @Getter("currentOpLog")
   currentState!: any;
 
+  @Getter("globalFilter")
+  globalFilter!: any;
+
+  @Getter("template", { namespace: "template" })
+  template!: any;
+
   @Action("loadDetailState")
   loadDetailState(payload: string) {}
+
+  saveCurrentOp() {
+    if (this.currentState == null) return;
+    let newOp = Object.assign({}, this.currentState);
+    newOp.relationState.controlState = Object.assign(
+      {},
+      (this.$refs["hierarchyChord"] as any).controlState
+    );
+    newOp.combinationState.controlState = Object.assign(
+      {},
+      (this.$refs["cominationTarget"] as any).controlState
+    );
+    newOp.portraitState.controlState = Object.assign(
+      {},
+      (this.$refs["portrait"] as any).controlState
+    );
+    newOp.portraitState.controlState.mode = "Global";
+    newOp.portraitState.detailedData = null;
+    newOp.combinationState.detailedData = null;
+    return newOp;
+  }
 
   handleDrilldown() {
     Bus.$on("highlight-target", (message: any) => {
@@ -112,11 +137,14 @@ export default class App extends Vue {
     });
     Bus.$on("filter-targets", (message: any) => {
       if (this.currentState == null) return;
-      if (message == null) this.currentState.filteredTargets = null;
-      else
-        this.currentState.filteredTargets = message.map((item: any) =>
-          Object.assign({}, item)
-        );
+      this.loadAllState(
+        Object.assign({
+          ids: message,
+          type: "Filter",
+          message: "筛选定向",
+          newOp: this.saveCurrentOp()
+        })
+      );
     });
     Bus.$on("select-cmb", (message: any) => {
       this.currentState.selectedCmb = message;
@@ -130,29 +158,40 @@ export default class App extends Vue {
       );
     });
     Bus.$on("drilldown-addState", (message: any) => {
-      if (this.currentState == null) return;
-      let newOp = Object.assign({}, this.currentState);
-      newOp.relationState.controlState = Object.assign(
-        {},
-        (this.$refs["hierarchyChord"] as any).controlState
+      // 每次下钻时，需要将状态保存起来,但也需要预先判断是否能够下钻
+      let clicked = message.drilldown.clicked;
+      let children = getNextLevelTargets(
+        this.template,
+        clicked.id,
+        this.globalFilter
       );
-      newOp.combinationState.controlState = Object.assign(
-        {},
-        (this.$refs["cominationTarget"] as any).controlState
-      );
-      newOp.portraitState.controlState = Object.assign(
-        {},
-        (this.$refs["portrait"] as any).controlState
-      );
-      newOp.portraitState.controlState.mode = "Global";
-      newOp.portraitState.detailedData = null;
-      newOp.combinationState.detailedData = null;
+      if (children.length === 0) {
+        let self: any = this;
+        self.$message({
+          type: "info",
+          message: "当前被下钻的定向已无符合定向频次条件的子定向"
+        });
+        return;
+      }
+
+      let newTargets = this.currentState.targets.map((target: any) => {
+        let tmp = Object.assign({}, target);
+        if (tmp.id === clicked.id) tmp.default = false;
+        return tmp;
+      });
+
+      let idx = newTargets.findIndex((target: any) => target.id === clicked.id);
+
+      newTargets.splice(idx, 0, ...children);
+
+      console.log(newTargets);
+
       this.loadAllState(
         Object.assign({
           type: "Drilldown",
-          ids: message.drilldown.ids,
-          message: `${message.drilldown.clicked.name}`,
-          newOp
+          ids: newTargets,
+          message: `下钻-${message.drilldown.clicked.name}`,
+          newOp: this.saveCurrentOp()
         })
       );
     });
@@ -182,7 +221,7 @@ body {
   display: grid;
   grid-gap: 5px;
   grid-template-rows: minmax(100%, 100%);
-  grid-template-columns: 250px 1fr 45%;
+  grid-template-columns: 300px 1fr 45%;
 }
 #app .bottom {
   display: grid;

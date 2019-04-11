@@ -139,7 +139,7 @@ export default class HierarchyChordChart {
     paint(groups: Group[], ribbons: Link[], legends: TargetingInfo[]) {
         this.paintGroup(groups);
         this.paintRibbon(ribbons);
-        this.paintLegend(legends);
+        // this.paintLegend(legends);
     }
 
     computeArcWidth(targets: TargetingInfo[]) {
@@ -186,7 +186,7 @@ export default class HierarchyChordChart {
         this.zr.resize();
         this.width = this.zr.getWidth();
         this.height = this.zr.getHeight();
-        this.origin = [Math.round(this.width / 2) - 50, Math.round(this.height / 2)];
+        this.origin = [Math.round(this.width / 2), Math.round(this.height / 2)];
         this.radius = Math.round(Math.min(this.origin[0], this.origin[1]) * 0.7);
         this.chartContainer.attr('position', [...this.origin]);
     }
@@ -258,10 +258,10 @@ export default class HierarchyChordChart {
                 let index2 = this.filteredTargets.findIndex(f => f.id === t.id);
                 if (index !== -1 && index2 === -1) return true;
                 else return false;
-            });
+            }).map(item => Object.assign({}, item));
             let clicked = this.map.get(target.index);
-            message.drilldown = Object.assign({ clicked, ids: currentIds });
-            Bus.$emit('drilldown', message); return
+            message.drilldown = Object.assign({ clicked, currentIds });
+            Bus.$emit('drilldown-addState', message); return
         };
 
         if (this.selectedCmb != null) {
@@ -275,45 +275,45 @@ export default class HierarchyChordChart {
         else this.unHighlight(target);
     }
 
-    paintLegend(legends: TargetingInfo[]) {
-        this.legendContainer.removeAll();
-        legends.sort((a: any, b: any) => b[this.index] - a[this.index]);
-        legends.forEach((d, i) => {
-            let color = this.color(d.id[0]);
-            let idx1 = this.data.findIndex(item => item.id === d.id);
-            let idx2 = this.filteredTargets.findIndex(item => item.id === d.id);
-            if (idx1 === -1 && idx2 === -1) {
-                return;
-            }
+    // paintLegend(legends: TargetingInfo[]) {
+    //     this.legendContainer.removeAll();
+    //     legends.sort((a: any, b: any) => b[this.index] - a[this.index]);
+    //     legends.forEach((d, i) => {
+    //         let color = this.color(d.id[0]);
+    //         let idx1 = this.data.findIndex(item => item.id === d.id);
+    //         let idx2 = this.filteredTargets.findIndex(item => item.id === d.id);
+    //         if (idx1 === -1 && idx2 === -1) {
+    //             return;
+    //         }
 
-            let legend = new zrender.Rect({
-                shape: { x: 0, y: i * 18, width: 12, height: 12 },
-                style: { opacity: 1, fill: color, stroke: '#000', textAlign: 'right', fontSize: 12, text: d.name, textPosition: [-3, 0] },
-                lId: d.id,
-                color,
-                active: true,
-                name: d.name
-            });
-            this.legendContainer.add(legend);
-            legend.on('click', (ev: any) => {
-                let target = ev.target;
-                if (this.activeId != null && this.activeId.name === target.name) return;
-                if (target.active === true) {
-                    target.attr('active', false);
-                    this.filteredTargets.push(Object.assign({}, d))
-                } else {
-                    let index = this.filteredTargets.findIndex(f => f.id === d.id);
-                    this.filteredTargets.splice(index, 1);
-                    target.attr('active', true);
-                }
-                Bus.$emit('filter-targets', this.filteredTargets);
-                this.update();
-            });
+    //         let legend = new zrender.Rect({
+    //             shape: { x: 0, y: i * 18, width: 12, height: 12 },
+    //             style: { opacity: 1, fill: color, stroke: '#000', textAlign: 'right', fontSize: 12, text: d.name, textPosition: [-3, 0] },
+    //             lId: d.id,
+    //             color,
+    //             active: true,
+    //             name: d.name
+    //         });
+    //         this.legendContainer.add(legend);
+    //         legend.on('click', (ev: any) => {
+    //             let target = ev.target;
+    //             if (this.activeId != null && this.activeId.name === target.name) return;
+    //             if (target.active === true) {
+    //                 target.attr('active', false);
+    //                 this.filteredTargets.push(Object.assign({}, d))
+    //             } else {
+    //                 let index = this.filteredTargets.findIndex(f => f.id === d.id);
+    //                 this.filteredTargets.splice(index, 1);
+    //                 target.attr('active', true);
+    //             }
+    //             Bus.$emit('filter-targets', this.filteredTargets);
+    //             this.update();
+    //         });
 
-        });
-        let containerHeight = this.legendContainer.getBoundingRect()['height'];
-        this.legendContainer.attr('position', [this.width - 20, Math.round((this.height - containerHeight) / 2)]);
-    }
+    //     });
+    //     let containerHeight = this.legendContainer.getBoundingRect()['height'];
+    //     this.legendContainer.attr('position', [this.width - 20, Math.round((this.height - containerHeight) / 2)]);
+    // }
 
     unHighlight(group: any) {
         let prevId = this.activeId ? this.activeId.id : null;
@@ -470,13 +470,13 @@ export default class HierarchyChordChart {
             let group = this.groupContainer.childOfName(this.activeId.name);
             this.highlight(group, false);
         }
-        if (this.filteredTargets.length !== 0) {
-            for (let target of this.filteredTargets) {
-                let name = target.name;
-                this.legendContainer.childOfName(name).attr('style', { fill: '#d2d2d2', textFill: '#ccc' })
-                    .attr('active', false);
-            }
-        }
+        // if (this.filteredTargets.length !== 0) {
+        //     for (let target of this.filteredTargets) {
+        //         let name = target.name;
+        //         this.legendContainer.childOfName(name).attr('style', { fill: '#d2d2d2', textFill: '#ccc' })
+        //             .attr('active', false);
+        //     }
+        // }
         if (this.selectedCmb != null) this.handleCoordinate(this.selectedCmb);
     }
 
