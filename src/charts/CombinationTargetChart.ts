@@ -63,7 +63,7 @@ export default class CombinationTargetChart {
 
         this.data = data;
         this.filteredIds = filteredIds == null ? [] : filteredIds;
-        this.targets = targets.filter((t: any) => t.default === true && t.disabled === false);
+        this.targets = targets.filter((t: any) => t.selected === true);
         this.and = and;
         this.or = or;
         this.selectedCmb = selectedCmb;

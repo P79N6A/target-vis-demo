@@ -6,8 +6,8 @@
   >
     <div class="panel">
       <span class="view-name">平行坐标 {{mode === 'Detail' ? '(定向组合限定)' : '(全局)'}}</span>
-      <span :class="{ active: canClearBrushes }" @click="handleClear">清除全部刷选</span>
-      <span class="active" @click="handleShowData">{{showData === true ? '显示视图' : '显示数据'}}</span>
+      <span :class="{ active: canClearBrushes }" @click="handleClear">清除刷选</span>
+      <span class="active" @click="handleShowData">{{showData === true ? '显示视图' : '原始数据'}}</span>
     </div>
     <div class="table-container" v-if="showData">
       <el-table

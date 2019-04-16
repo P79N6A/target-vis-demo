@@ -5,7 +5,7 @@
     class="hierarchy-chord chart-container"
   >
     <div class="panel">
-      <span class="view-name">定向关系图</span>
+      <span class="view-name">定向关系频次图</span>
       <el-switch
         size="mini"
         @change="handleIndexChange"

@@ -170,13 +170,14 @@
           </el-timeline>
         </el-tab-pane>
       </el-tabs>
-      <el-dialog title="定向结构" :visible.sync="showDialog" width="40%">
+      <el-dialog title="定向结构(人口属性等虚拟定向,不会参与分析流程)" :visible.sync="showDialog" width="40%">
         <el-tree
           ref="tree"
+          :check-strictly="true"
           show-checkbox
           :default-checked-keys="defaultCheckedKey"
           v-if="templateLoaded && treeData != null"
-          :props="{children: 'children',  label: 'name', isLeaf: 'isLeaf'}"
+          :props="{children: 'children', label: 'name', isLeaf: 'isLeaf'}"
           :data="treeData"
           node-key="id"
         >
@@ -187,7 +188,7 @@
           </span>
         </el-tree>
         <span slot="footer" class="dialog-footer">
-          <el-button @click="showDialog = false">取 消</el-button>
+          <el-button @click="handleCancelCheckBox">取 消</el-button>
           <el-button type="primary" @click="handleCheckbox">确 定</el-button>
         </span>
       </el-dialog>
@@ -209,12 +210,20 @@ export default class GlobalControlPanel extends Vue {
   @Getter("globalFilter")
   globalFilter!: FilterForm;
 
+  handleCancelCheckBox() {
+    let oldTreeData = this.treeData;
+    this.treeData = null;
+    this.showDialog = false;
+    setTimeout(() => (this.treeData = oldTreeData), 50);
+  }
+
   handleCheckbox() {
     let tree: any = this.$refs["tree"];
     let newCheckedNodes = tree.getCheckedNodes();
     newCheckedNodes = newCheckedNodes.filter(
       (node: any) => node.isLeaf === true
     );
+    // 选中的叶子节点未发生改变
     if (
       newCheckedNodes.map((i: any) => i.id).toString() ===
       this.defaultCheckedKey.toString()
@@ -222,21 +231,49 @@ export default class GlobalControlPanel extends Vue {
       this.showDialog = false;
       return;
     }
+
+    let freq = this.form.freq;
+    let hasDisabledTarget: boolean = false;
     let newTargets = this.currentState.targets.map((target: any) => {
       let tmp = Object.assign({}, target);
       let idx = newCheckedNodes.findIndex((node: any) => node.id === tmp.id);
-
-      if (idx !== -1 && newCheckedNodes[idx].isLeaf === true) {
-        tmp.default = true;
-      } else if (idx === -1) {
-        tmp.default = false;
-      }
+      if (idx === -1 || (freq.lower > tmp.freq || freq.upper < tmp.freq)) {
+        tmp.selected = false;
+      } else tmp.selected = true;
+      if (idx !== -1 && (freq.lower > tmp.freq || freq.upper < tmp.freq))
+        hasDisabledTarget = true;
       return tmp;
     });
-    console.table(newCheckedNodes);
-    console.table(newTargets);
-    Bus.$emit("filter-targets", newTargets);
+
+    // let addTargets: any[] = newCheckedNodes
+    //   .filter(
+    //     (node: any) =>
+    //       node.freq >= this.form.freq.lower && node.freq <= this.form.freq.upper
+    //   )
+    //   .filter((node: any) => this.defaultCheckedKey.indexOf(node.id) === -1)
+    //   .map((node: any) => Object.assign({ name: node.name }));
+    // let removeTargets: any[] = (this.treeData as any)
+    //   .filter((node: any) => node.selected === true)
+    //   .filter(
+    //     (node: any) =>
+    //       newCheckedNodes.findIndex((item: any) => item.id === node.id) === -1
+    //   )
+    //   .map((node: any) => Object.assign({ name: node.label }));
+
     this.showDialog = false;
+    const self: any = this;
+    if (hasDisabledTarget !== false)
+      setTimeout(() => {
+        self
+          .$confirm(
+            "部分选中定向不符合定向频次筛选, 如仍要选择可能不会对视图结果产生影响, 是否提交修改?"
+          )
+          .then(() => Bus.$emit("filter-targets", newTargets))
+          .catch(() => this.handleCancelCheckBox());
+      }, 50);
+    else {
+      Bus.$emit("filter-targets", newTargets);
+    }
   }
 
   showDialog: boolean = false;
@@ -258,7 +295,7 @@ export default class GlobalControlPanel extends Vue {
       this.form.freq
     );
     this.defaultCheckedKey = this.currentState.targets
-      .filter((t: any) => t.default === true && t.disabled === false)
+      .filter((t: any) => t.selected === true)
       .map((t: any) => t.id);
   }
 
@@ -269,7 +306,7 @@ export default class GlobalControlPanel extends Vue {
   @Getter("currentLogs")
   currentLogs!: any;
 
-  @Mutation("changeCurrentLogPointer")
+  @Action("changeCurrentLogPointer")
   changeCurrentLogPointer(payload: number) {}
 
   @Watch("globalFilter")

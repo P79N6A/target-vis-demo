@@ -3,7 +3,7 @@ import { RelationData, TargetingInfo } from '@/models/targeting';
 import { Group, Link } from '@/models/chord';
 import Bus from '@/charts/event-bus';
 import { throttle } from '@/utils/optimize';
-import { RibbonGenerator, ScaleLinear } from 'd3';
+import { RibbonGenerator, ScaleLinear, Ribbon } from 'd3';
 
 export type GroupDatum = {
     index: number;
@@ -156,12 +156,12 @@ export default class HierarchyChordChart {
         // 每次计算数据时均需要考虑该定向是否包含在targets内而又没有被过滤
         let ids = targets.filter(item => {
             let idx1 = raw.findIndex(r => r.id === item.id);
-            let idx2 = this.filteredTargets.findIndex(f => f.id === item.id);
-            if (idx1 !== -1 && idx2 === -1) return true;
+            if (idx1 !== -1) return true;
             return false;
         });
 
         ids.sort((a: any, b: any) => b[this.index] - a[this.index]);
+
 
         const self: any = this;
         ids.forEach((id: TargetingInfo, row: number) => {
@@ -171,11 +171,17 @@ export default class HierarchyChordChart {
             let matrixRow = raw.find((item) => item.id === id.id);
             let relation = matrixRow && matrixRow.relation;
             if (relation == null) return;
+
+            let totalCount: number = relation.reduce((prev, curr) => Object.assign({ value: prev.value + curr.value })).value;
+            let baseValue = Math.round((id as any)[this.index]);
             for (let col = 0, cols = ids.length; col < cols; ++col) {
                 let colId = ids[col].id;
                 let result = relation.find((rel: any) => rel.id === colId);
                 if (result == null) tmp[col] = 0;
-                else tmp[col] = result.value;
+                else {
+                    let proportion = Math.round(result.value / totalCount * baseValue)
+                    tmp[col] = proportion;
+                }
             }
             matrix[row] = tmp;
         });
@@ -200,7 +206,7 @@ export default class HierarchyChordChart {
             let angle = -1 * (d.startAngle + d.endAngle) / 2;
             let color = this.color(d.id[0]);
 
-            let arcWidth = this.arcWidthScale(d[this.index])
+            let arcWidth = 10;
             let radius = this.radius + this.radiusScale(d.level);
             let offsetX = Math.cos(angle) * (radius + arcWidth + 10)
             let offsetY = Math.sin(angle) * -  (radius + arcWidth + 10);
@@ -275,48 +281,8 @@ export default class HierarchyChordChart {
         else this.unHighlight(target);
     }
 
-    // paintLegend(legends: TargetingInfo[]) {
-    //     this.legendContainer.removeAll();
-    //     legends.sort((a: any, b: any) => b[this.index] - a[this.index]);
-    //     legends.forEach((d, i) => {
-    //         let color = this.color(d.id[0]);
-    //         let idx1 = this.data.findIndex(item => item.id === d.id);
-    //         let idx2 = this.filteredTargets.findIndex(item => item.id === d.id);
-    //         if (idx1 === -1 && idx2 === -1) {
-    //             return;
-    //         }
-
-    //         let legend = new zrender.Rect({
-    //             shape: { x: 0, y: i * 18, width: 12, height: 12 },
-    //             style: { opacity: 1, fill: color, stroke: '#000', textAlign: 'right', fontSize: 12, text: d.name, textPosition: [-3, 0] },
-    //             lId: d.id,
-    //             color,
-    //             active: true,
-    //             name: d.name
-    //         });
-    //         this.legendContainer.add(legend);
-    //         legend.on('click', (ev: any) => {
-    //             let target = ev.target;
-    //             if (this.activeId != null && this.activeId.name === target.name) return;
-    //             if (target.active === true) {
-    //                 target.attr('active', false);
-    //                 this.filteredTargets.push(Object.assign({}, d))
-    //             } else {
-    //                 let index = this.filteredTargets.findIndex(f => f.id === d.id);
-    //                 this.filteredTargets.splice(index, 1);
-    //                 target.attr('active', true);
-    //             }
-    //             Bus.$emit('filter-targets', this.filteredTargets);
-    //             this.update();
-    //         });
-
-    //     });
-    //     let containerHeight = this.legendContainer.getBoundingRect()['height'];
-    //     this.legendContainer.attr('position', [this.width - 20, Math.round((this.height - containerHeight) / 2)]);
-    // }
 
     unHighlight(group: any) {
-        let prevId = this.activeId ? this.activeId.id : null;
         this.activeId = null;
         this.update();
         // 取消对组合图的And操作
@@ -407,31 +373,46 @@ export default class HierarchyChordChart {
     }
 
 
-    computeRibbonRelateData(sIndex: number, tIndex: number, value: number) {
-        let source = this.map.get(sIndex) as TargetingInfo;
-        let target = this.map.get(tIndex) as TargetingInfo;
-        let sourceSum = this.matrix[sIndex].reduce((prev: number, next: number) => prev + next, 0);
-        let targetSum = this.matrix[tIndex].reduce((prev: number, next: number) => prev + next, 0);
+    computeRibbonRelateData(s: any, t: any) {
+        let source = this.map.get(s) as TargetingInfo;
+        let target = this.map.get(t) as TargetingInfo;
+
+
+        let sourceRow: any = this.data.find(item => item.id === source.id);
+        let targetRow: any = this.data.find(item => item.id === target.id);
+
+        sourceRow = sourceRow.relation.reduce((prev: any, next: any) => Object.assign({ value: prev.value + next.value }));
+        targetRow = targetRow.relation.reduce((prev: any, next: any) => Object.assign({ value: prev.value + next.value }));
+
         let sourceFreq = source.freq;
         let targetFreq = target.freq;
+
         let sourceCost = source.cost.toFixed(3);
         let targetCost = target.cost.toFixed(3);
-        let sourceRatio = +parseFloat("" + (value / sourceSum)).toFixed(4) * 100;
-        let targetRatio = +parseFloat("" + (value / targetSum)).toFixed(4) * 100;
+
+        let totalConcurrent: any = this.data.find(item => item.id === source.id);
+        if (totalConcurrent != null) totalConcurrent = totalConcurrent.relation.find((item: any) => item.id === target.id);
+
+        let sourceRatio = +parseFloat("" + (totalConcurrent.value / sourceRow.value)).toFixed(4) * 100;
+        let targetRatio = +parseFloat("" + (totalConcurrent.value / targetRow.value)).toFixed(4) * 100;
+
+
         let color = this.color(sourceRatio > targetRatio ? source.id[0] : target.id[0]);
         let sourceColor = this.color(source.id[0]);
         let targetColor = this.color(target.id[0]);
         let sourceRadius = this.radiusScale(source.level + "") + this.radius;
         let targetRadius = (this.radiusScale(target.level + "") + this.radius);
-        return { sourceCost, targetCost, sourceFreq, targetFreq, sourceName: source.name, targetName: target.name, sourceRatio, targetRatio, color, sourceColor, targetColor, sourceRadius, targetRadius };
+        return { totalConcurrent: totalConcurrent.value, sourceCost, targetCost, sourceFreq, targetFreq, sourceName: source.name, targetName: target.name, sourceRatio, targetRatio, color, sourceColor, targetColor, sourceRadius, targetRadius };
     }
 
     paintRibbon(ribbons: Link[]) {
         // 因不知如何用zrender对ribbon进行动画，所以直接重绘
         this.ribbonContainer.removeAll();
         ribbons.forEach((d) => {
+
             let value = d.source.value;
-            let { sourceColor, targetColor, sourceRadius, targetRadius, color, sourceName, targetName } = this.computeRibbonRelateData(d.source.index, d.target.index, value);
+
+            let { sourceColor, targetColor, sourceRadius, targetRadius, color, sourceName, targetName } = this.computeRibbonRelateData(d.source.index, d.target.index);
 
             let tmpData = Object.assign({}, {
                 source: { startAngle: d.source.startAngle, endAngle: d.source.endAngle, radius: sourceRadius },
@@ -470,13 +451,6 @@ export default class HierarchyChordChart {
             let group = this.groupContainer.childOfName(this.activeId.name);
             this.highlight(group, false);
         }
-        // if (this.filteredTargets.length !== 0) {
-        //     for (let target of this.filteredTargets) {
-        //         let name = target.name;
-        //         this.legendContainer.childOfName(name).attr('style', { fill: '#d2d2d2', textFill: '#ccc' })
-        //             .attr('active', false);
-        //     }
-        // }
         if (this.selectedCmb != null) this.handleCoordinate(this.selectedCmb);
     }
 
@@ -492,15 +466,11 @@ export default class HierarchyChordChart {
         }, this));
     }
 
+    buildTooltipStr(s: any, t: any) {
 
-    handleRibbonHover(ev: any) {
-        // 鼠标移动到了Ribbon上
-        let target = ev.target;
-        let value = target.value;
-        let { sourceRatio, sourceFreq, sourceCost, targetCost, targetFreq, targetRatio, targetColor, sourceColor, targetName, sourceName } = this.computeRibbonRelateData(target.source, target.target, value);
-        this.tooltip.style.visibility = 'visible';
-        // 
-        let tooptipStr = `
+
+        let { sourceColor, sourceRatio, targetRatio, totalConcurrent, sourceFreq, sourceCost, targetFreq, targetCost, sourceName, targetName, targetColor } = this.computeRibbonRelateData(s, t);
+        let str = `
         <p>
         <span class="tip" style="border-color: ${sourceColor};"></span><span>${sourceName}</span>
         <span>-${this.index === 'freq' ? '频次' : '消耗'}: ${this.index === 'freq' ? sourceFreq : sourceCost}</span> 
@@ -511,22 +481,50 @@ export default class HierarchyChordChart {
         </p>
       
         <p>
-        <span style="margin-left: 15px;">两种定向共现${value}次</span>
+        <span style="margin-left: 15px;">两种定向共现${totalConcurrent}次</span>
         </p>
         <p>
-        <span style="margin-left: 15px;"> 占${sourceName}共现比例: 
-        ${(sourceRatio + "").substr(0, 4) + "%"}</span>
-       </p>
-        <p>
-        <span style="margin-left: 15px;">占${targetName}共现比例: ${(targetRatio + "").substr(0, 4) + '%'}</span>
-        </p>
+            <span style="margin-left: 15px;"> 占${sourceName}共现比例: 
+            ${(sourceRatio + "").substr(0, 4) + "%"}</span>
+           </p>
+            <p>
+            <span style="margin-left: 15px;">占${targetName}共现比例: ${(targetRatio + "").substr(0, 4) + '%'}</span>
+            </p>
         `
+
+        return str;
+    }
+
+
+    handleRibbonHover(ev: any) {
+        // 鼠标移动到了Ribbon上
+        // 将ribbon的z值设为最高
+
+
+
+        let target = ev.target;
+
+        target.attr('oldZ', ev.target.z);
+        target.attr('z', Number.MAX_SAFE_INTEGER);
+        target.attr('style', {
+            shadowBlur: 1,
+            shadowColor: '#000'
+        });
+        this.tooltip.style.visibility = 'visible';
+        // 
+        let tooptipStr = this.buildTooltipStr(target.source, target.target);
         this.tooltip.innerHTML = tooptipStr;
     }
 
 
 
     handleRibbonOut(ev: any) {
+        ev.target.attr('z', ev.target.oldZ);
+        ev.target.attr('oldZ', null);
+        ev.target.attr('style', {
+            shadowBlur: 0,
+            shadowColor: 'transparent'
+        });
         this.tooltip.style.visibility = 'hidden';
         this.tooltip.innerHTML = ""
     }
@@ -586,9 +584,3 @@ export default class HierarchyChordChart {
     }
 }
 
-function test() {
-    let maxValue = Math.pow(2, 16) - 1;
-    for (let i = 0; i < 256; ++i) {
-
-    }
-}

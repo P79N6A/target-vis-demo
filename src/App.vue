@@ -165,7 +165,7 @@ export default class App extends Vue {
         clicked.id,
         this.globalFilter
       );
-      if (children.length === 0) {
+      if (children.some((child: any) => child.selected === true) === false) {
         let self: any = this;
         self.$message({
           type: "info",
@@ -176,15 +176,13 @@ export default class App extends Vue {
 
       let newTargets = this.currentState.targets.map((target: any) => {
         let tmp = Object.assign({}, target);
-        if (tmp.id === clicked.id) tmp.default = false;
+        if (tmp.id === clicked.id) tmp.selected = false;
         return tmp;
       });
 
       let idx = newTargets.findIndex((target: any) => target.id === clicked.id);
 
       newTargets.splice(idx, 0, ...children);
-
-      console.log(newTargets);
 
       this.loadAllState(
         Object.assign({

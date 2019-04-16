@@ -7,7 +7,7 @@
     <div class="panel">
       <span class="view-name">定向组合图</span>
       <el-dropdown trigger="click" @command="handleMenuClick">
-        <el-button type="text">按 {{sorter[0].toUpperCase() + sorter.substring(1)}} 排序</el-button>
+        <el-button type="text">排序: {{sorter[0].toUpperCase() + sorter.substring(1)}}</el-button>
         <el-dropdown-menu slot="dropdown">
           <el-dropdown-item command="Freq">Freq</el-dropdown-item>
           <el-dropdown-item command="Click">Click</el-dropdown-item>
@@ -21,7 +21,7 @@
 
       <el-dropdown trigger="click" @command="handleSizeChange">
         <span>
-          <el-button type="text">Top {{limit}} 的定向组合</el-button>
+          <el-button type="text">Top {{limit}}</el-button>
         </span>
         <el-dropdown-menu slot="dropdown">
           <el-dropdown-item command="10">10</el-dropdown-item>
@@ -64,12 +64,12 @@
             <el-button @click="onSubmit" type="primary">提交</el-button>
           </el-form-item>
         </el-form>
-        <el-button slot="reference" type="text">必含 | 可含定向选择</el-button>
+        <el-button slot="reference" type="text">And | Or</el-button>
       </el-popover>
       <span
         :class="{ active: selectedCmb != null  }"
         @click="handleDetail"
-      >切换对应视图为{{mode !== 'Global' ? '全局' : '详情'}}模式</span>
+      >{{mode !== 'Global' ? '全局' : '详情'}}模式</span>
       <span class="fill-space"></span>
     </div>
     <div v-show="titles" class="title-container">
@@ -177,10 +177,10 @@ export default class CombinationTarget extends Vue {
     this.and = and;
     this.or = or;
     this.selectableAnd = this.ids
-      .filter((id: any) => id.default === true && id.disabled === false)
+      .filter((id: any) => id.selected === true)
       .map(item => Object.assign({}, item));
     this.selectableOr = this.ids
-      .filter((id: any) => id.default === true && id.disabled === false)
+      .filter((id: any) => id.selected === true)
       .map(item => Object.assign({}, item));
     this.and.forEach(
       item =>
@@ -465,6 +465,7 @@ export default class CombinationTarget extends Vue {
     this.limit = +size;
     this.controlState.limit = this.limit;
     if (this.currentState == null) return;
+    this.brushedCmbs = null;
     this.process(this.data);
   }
 }

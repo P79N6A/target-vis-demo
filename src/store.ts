@@ -83,7 +83,6 @@ const store: StoreOptions<RootState> = {
         filter,
       }));
       if (currentRequestId != stateId) return;
-      console.log(result);
       if (result == null) {
         alert('详情数据加载出错!');
         commit('detailedLoadedMutation', true);
@@ -95,6 +94,39 @@ const store: StoreOptions<RootState> = {
     },
 
 
+    async changeCurrentLogPointer({ commit, getters, rootGetters }, payload: number) {
+      commit('systemLoadedMutation', false);
+
+
+      // 切换状态时需要判断是否有新的全局条件
+      // 即从currentLogPointer - payload 之间是否有新全局筛选条件
+
+
+
+      let key = getters['logs'][payload].key;
+      let index = getters['opLogs'].findIndex((op: any) => key === op.key);
+      let nextState = getters['opLogs'][index];
+      let currentState = getters['currentOpLog'];
+
+      let oldGlobalFilter = currentState.globalFilterState;
+      let newGlobalFilter = nextState.globalFilterState;
+      let globalFilter = JSON.parse(nextState.globalFilterState);
+      let result: any = null;
+      if (oldGlobalFilter !== newGlobalFilter) {
+        let filter = transformPostData(globalFilter, rootGetters['types/types']);
+        result = await service.loadTemplate(Object.assign({ filter }));
+        setTimeout(() => {
+          commit('systemLoadedMutation', true);
+          commit('changeCurrentLogPointer', payload);
+          commit('template/templateMutation', result);
+        }, 50);
+      } else {
+        setTimeout(() => {
+          commit('systemLoadedMutation', true);
+          commit('changeCurrentLogPointer', payload);
+        }, 100);
+      }
+    },
 
     async loadAllState({ rootGetters, commit }, payload: any) {
       let currentRequestId = ++requestId;
@@ -107,10 +139,11 @@ const store: StoreOptions<RootState> = {
       if (payload.ids != null) ids = payload.ids;
       else ids = getInitTargetingIds(rootGetters['template/template'], rootGetters['globalFilter']);
 
+
       let filter = transformPostData(rootGetters['globalFilter'], rootGetters['types/types']);
       let result = await service.loadAllState(Object.assign({
         filter,
-        ids: ids.filter(id => (id as any).default === true && (id as any).disabled === false).map(id => id.id),
+        ids: ids.filter((id: any) => id.selected === true).map(id => id.id),
         and: [],
         or: [],
         patterns: []
@@ -137,6 +170,7 @@ const store: StoreOptions<RootState> = {
         highlightedTarget: null,
         targets: ids,
         globalFilterState: JSON.stringify(Object.assign({}, rootGetters['globalFilter'])),
+
         relationState: {
           data: result['relations'],
           controlState: { index: 'freq' }
@@ -170,6 +204,9 @@ const store: StoreOptions<RootState> = {
     targetFreqLoaded(store) { return store.targetFreqLoaded },
     globalFilter(store) { return store.globalFilter },
     currentLogs(store) {
+      return store.logs;
+    },
+    logs(store) {
       return store.logs;
     },
     logPointer(store) {
@@ -214,9 +251,7 @@ const store: StoreOptions<RootState> = {
       currentState.portraitState.detailedData = payload.portrait;
     },
     changeCurrentLogPointer(store, payload: number) {
-      store.systemLoaded = false;
       store.logPointer = payload;
-      setTimeout(() => store.systemLoaded = true, 500);
     },
     targetFreqLoadedMutation(store, payload: boolean) { store.targetFreqLoaded = payload },
     detailedLoadedMutation(store, payload: boolean) { store.detailLoaded = payload },

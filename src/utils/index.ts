@@ -20,12 +20,28 @@ export function buildTree(raw: TargetingTreeNode[]): TargetingTreeNode {
     return root;
 }
 
+// export function getTreeNodes(root: TargetingTreeNode, targets: TargetingInfo[], freq: any) {
+//     let result = root.children.map(item => Object.assign({ freq: item.freq, id: item.id, level: item.level, name: item.name, isLeaf: false }));
+//     let tmpTargets = targets.map((item: any) => Object.assign({ freq: item.freq, id: item.id, level: item.level, name: item.name, parentId: item.parentId, disabled: item.disabled, isLeaf: true, default: item.default }));
+//     tmpTargets = tmpTargets.concat(result);
+//     tmpTargets.forEach((target: any) => {
+//         if ((target.freq < freq.lower || target.freq > freq.upper) && target.level > 1) target.disabled = true;
+//         let parent: any = tmpTargets.find(t => t.id === target.parentId);
+//         if (parent == null) return;
+//         if (parent.children == null) {
+//             parent.children = [];
+//             parent.isLeaf = false;
+//         }
+//         parent.children.push(target);
+//     });
+//     return tmpTargets.filter(t => t.level === 1);
+// }
+
 export function getTreeNodes(root: TargetingTreeNode, targets: TargetingInfo[], freq: any) {
     let result = root.children.map(item => Object.assign({ freq: item.freq, id: item.id, level: item.level, name: item.name, isLeaf: false }));
-    let tmpTargets = targets.map((item: any) => Object.assign({ freq: item.freq, id: item.id, level: item.level, name: item.name, parentId: item.parentId, disabled: item.disabled, isLeaf: true, default: item.default }));
+    let tmpTargets = targets.map((item: any) => Object.assign({ freq: item.freq, id: item.id, level: item.level, name: item.name, parentId: item.parentId, isLeaf: true, selected: item.selected }));
     tmpTargets = tmpTargets.concat(result);
     tmpTargets.forEach((target: any) => {
-        if ((target.freq < freq.lower || target.freq > freq.upper) && target.level > 1) target.disabled = true;
         let parent: any = tmpTargets.find(t => t.id === target.parentId);
         if (parent == null) return;
         if (parent.children == null) {
@@ -34,21 +50,36 @@ export function getTreeNodes(root: TargetingTreeNode, targets: TargetingInfo[], 
         }
         parent.children.push(target);
     });
+
     return tmpTargets.filter(t => t.level === 1);
 }
 
 
 // 返回初始选择的定向
+// export function getInitTargetingIds(tree: TargetingTreeNode, freqLimit: any, filters: string[] = ['6', '7', '8']) {
+//     let ids: any[] = [];
+//     let freq = freqLimit.freq;
+//     tree.children.forEach((node: any) => {
+//         node.children.forEach((n: any) => {
+//             let tmpTarget = Object.assign({ cost: n.cost, freq: n.freq, level: n.level, parentId: n.parentId, id: n.id, name: n.name });
+//             if (tmpTarget.freq < freq.lower || n.freq > freq.upper) tmpTarget.disabled = true;
+//             else tmpTarget.disabled = false;
+//             if (filters.indexOf(tmpTarget.parentId) === -1) tmpTarget.default = true;
+//             else tmpTarget.default = false;
+//             ids.push(tmpTarget);
+//         });
+//     });
+//     return ids;
+// }
+
 export function getInitTargetingIds(tree: TargetingTreeNode, freqLimit: any, filters: string[] = ['6', '7', '8']) {
     let ids: any[] = [];
     let freq = freqLimit.freq;
     tree.children.forEach((node: any) => {
         node.children.forEach((n: any) => {
             let tmpTarget = Object.assign({ cost: n.cost, freq: n.freq, level: n.level, parentId: n.parentId, id: n.id, name: n.name });
-            if (tmpTarget.freq < freq.lower || n.freq > freq.upper) tmpTarget.disabled = true;
-            else tmpTarget.disabled = false;
-            if (filters.indexOf(tmpTarget.parentId) === -1) tmpTarget.default = true;
-            else tmpTarget.default = false;
+            if ((tmpTarget.freq < freq.lower || n.freq > freq.upper) || filters.indexOf(tmpTarget.parentId) !== -1) tmpTarget.selected = false;
+            else tmpTarget.selected = true;
             ids.push(tmpTarget);
         });
     });
@@ -75,7 +106,6 @@ export function getTargets(tree: TargetingTreeNode, ids: string[]) {
 export function getNextLevelTargets(template: TargetingTreeNode, parentId: string, globalFilter: any) {
     let freq = globalFilter.freq;
     let root = template.children.find((t) => t.id === parentId[0]);
-
     let len = 1;
     while (root != null && root.id != parentId) {
         len = len + 2;
@@ -85,11 +115,10 @@ export function getNextLevelTargets(template: TargetingTreeNode, parentId: strin
 
     return root.children.map(r => {
         let tmp = Object.assign({ parentId: r.parentId, id: r.id, name: r.name, level: r.level, freq: r.freq, cost: r.cost });
-        if (tmp.freq < freq.lower || tmp.freq > freq.upper) tmp.disabled = true;
-        else tmp.disabled = false;
-        tmp.default = true;
+        if (tmp.freq < freq.lower || tmp.freq > freq.upper) tmp.selected = false;
+        else tmp.selected = true;
         return tmp;
-    })
+    });
 }
 
 export function transformPostData(globalFilter: FilterForm, types: Types) {

@@ -29,11 +29,11 @@
           <el-dropdown-item command="Cpc">Cpc</el-dropdown-item>
         </el-dropdown-menu>
       </el-dropdown>
-      <span
+      <!-- <span
         @click="handleMoreDetail"
         class="active"
         v-if="controlState.mode === 'Detail'"
-      >{{!moreDetail ? '打开' : '关闭'}}人群定位</span>
+      >{{!moreDetail ? '打开' : '关闭'}}人群定位</span>-->
       <span class="fill-space"></span>
     </div>
     <div class="chart"></div>
@@ -207,10 +207,7 @@ export default class Portrait extends Vue {
         this.loadTargetFreq(
           Object.assign({
             ids: this.ids
-              .filter(
-                id =>
-                  (id as any).default === true && (id as any).disabled === false
-              )
+              .filter((id: any) => id.selected === true)
               .map((item: any) => item.id),
             condition: map[index]
           })
