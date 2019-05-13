@@ -128,16 +128,6 @@ export default class Portrait extends Vue {
   handleMoreDetail() {}
 
   handleCoordinate() {
-    Bus.$on("highlight-target", (message: any) => {
-      this.highlightedTarget = message;
-      if (this.currentState == null) return;
-      this.renderChart();
-    });
-    Bus.$on("filter-targets", (message: any) => {
-      this.filteredTargets = message;
-      if (this.currentState == null) return;
-      this.renderChart();
-    });
     Bus.$on("change-global", () => {
       this.controlState.mode = "Global";
       this.index = this.controlState.index;

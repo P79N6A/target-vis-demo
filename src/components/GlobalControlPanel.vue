@@ -173,7 +173,6 @@
       <el-dialog title="定向结构(人口属性等虚拟定向,不会参与分析流程)" :visible.sync="showDialog" width="40%">
         <el-tree
           ref="tree"
-          :check-strictly="true"
           show-checkbox
           :default-checked-keys="defaultCheckedKey"
           v-if="templateLoaded && treeData != null"
@@ -245,21 +244,6 @@ export default class GlobalControlPanel extends Vue {
       return tmp;
     });
 
-    // let addTargets: any[] = newCheckedNodes
-    //   .filter(
-    //     (node: any) =>
-    //       node.freq >= this.form.freq.lower && node.freq <= this.form.freq.upper
-    //   )
-    //   .filter((node: any) => this.defaultCheckedKey.indexOf(node.id) === -1)
-    //   .map((node: any) => Object.assign({ name: node.name }));
-    // let removeTargets: any[] = (this.treeData as any)
-    //   .filter((node: any) => node.selected === true)
-    //   .filter(
-    //     (node: any) =>
-    //       newCheckedNodes.findIndex((item: any) => item.id === node.id) === -1
-    //   )
-    //   .map((node: any) => Object.assign({ name: node.label }));
-
     this.showDialog = false;
     const self: any = this;
     if (hasDisabledTarget !== false)
@@ -285,6 +269,7 @@ export default class GlobalControlPanel extends Vue {
 
   @Watch("currentState")
   watchCurrentState(nVal: any) {
+    console.log(nVal);
     if (nVal == null) return;
     let globalFilterStr = JSON.parse(nVal.globalFilterState);
     this.form = Object.assign({}, globalFilterStr);
@@ -310,10 +295,15 @@ export default class GlobalControlPanel extends Vue {
   changeCurrentLogPointer(payload: number) {}
 
   @Watch("globalFilter")
-  watchGlobalFilter(nVal: FilterForm) {
+  watchGlobalFilter(nVal: FilterForm, oVal: FilterForm) {
     this.form = Object.assign({}, nVal);
     this.formStr = JSON.stringify(this.form);
-    if (this.typesLoaded === true) this.getTemplateAction();
+    if (
+      this.typesLoaded === true &&
+      JSON.stringify(nVal) !== JSON.stringify(oVal)
+    ) {
+      this.getTemplateAction();
+    }
   }
 
   @Getter("logPointer")
@@ -372,11 +362,15 @@ export default class GlobalControlPanel extends Vue {
     this.form = Object.assign({}, oldForm);
   }
 
+  @Mutation("systemLoadedMutation")
+  systemLoadedMutation(payload: boolean) {}
+
   onSubmit() {
     let newFormStr = JSON.stringify(this.form);
     let oldFormStr = this.formStr;
     if (newFormStr !== oldFormStr) {
       this.formStr = newFormStr;
+      this.systemLoadedMutation(false);
       this.globalFilterMutation(this.form);
     }
   }

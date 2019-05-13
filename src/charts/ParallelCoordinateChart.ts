@@ -3,7 +3,6 @@ import * as d3 from 'd3';
 import Bus from '@/charts/event-bus';
 import { CombinationData } from '@/models/targeting';
 import { sorter } from './CombinationTargetChart';
-import { ScaleLinear, ScalePoint, line, ScaleLogarithmic, lab, brush } from 'd3';
 import { throttle } from '@/utils/optimize';
 
 export interface LineDatum {
@@ -47,7 +46,7 @@ export default class ParallelCoordinateChart {
     yFormats: any = {};
 
     globalLineOpacity: number = 1;
-    detailLineOpacity: number = 0.2;
+    detailLineOpacity: number = 0.5;
 
     bins: any = null;
     mode!: string;
@@ -290,9 +289,6 @@ export default class ParallelCoordinateChart {
                 let [x, y] = [selectionGroup.position[1], selectionRect.shape.height];
                 if (y > 0) {
                     this.yBrushes[name] = [x, x + y];
-                    // let scale = this.yScales[name];
-                    // let format = this.yFormats[name];
-                    // let [upper, lower] = [format(scale.invert(x)), format(scale.invert(x + y))];
                     let brushGroup = this.axisContainer.childOfName(name)
                     brushGroup.childOfName('axis-line').attr('style', { textFill: '#409EFF' });
                 }

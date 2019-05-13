@@ -3,7 +3,6 @@ export function init() {
     let prev = localStorage.getItem('twmp');
     if (prev != null) return JSON.parse(prev);
     else return Object.assign({
-
         globalState: {
             globalFilter: {
                 siteSet: [],

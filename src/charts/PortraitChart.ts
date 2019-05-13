@@ -528,7 +528,7 @@ export default class PortraitChart {
                 selection.attr('position', [newPosX, 0]);
                 selectionRect.attr('shape', { width: newSWidth });
                 controlRight.attr('position', [newSWidth, 0]);
-                this.initBrushWidth = selectionRect.shape.width;
+                // this.initBrushWidth = selectionRect.shape.width;
                 this.processFocus();
             }, this);
             let onResizeRight = throttle(30, (ev: any) => {
@@ -547,7 +547,7 @@ export default class PortraitChart {
                 }
                 selectionRect.attr('shape', { width: newSWidth });
                 controlRight.attr('position', [newSWidth, 0]);
-                this.initBrushWidth = selectionRect.shape.width;
+                // this.initBrushWidth = selectionRect.shape.width;
                 this.processFocus();
             }, this);
 

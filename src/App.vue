@@ -63,8 +63,12 @@ export default class App extends Vue {
     //   console.log("need init");
     //   this.loadAllState();
     // }
-    this.loadAllState(Object.assign({ type: "Init" }));
+    if (this.systemLoaded === false)
+      this.loadAllState(Object.assign({ type: "Init" }));
   }
+
+  @Getter("currentOpLog")
+  currentOpLog!: any[];
   // 监听
   @Watch("typesLoaded")
   watchTypesLoaded(nVal: boolean) {

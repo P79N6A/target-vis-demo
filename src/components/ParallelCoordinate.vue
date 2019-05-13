@@ -10,13 +10,7 @@
       <span class="active" @click="handleShowData">{{showData === true ? '显示视图' : '原始数据'}}</span>
     </div>
     <div class="table-container" v-if="showData">
-      <el-table
-        :row-class-name="tableRowClassName"
-        style="width: 100%"
-        border
-        :data="tableData"
-        height="400px"
-      >
+      <el-table style="width: 100%" border :data="tableData" height="400px">
         <el-table-column prop="rank" label="Rank" v-if="mode === 'Global'"></el-table-column>
         <el-table-column prop="freq" label="Freq" v-if="mode === 'Global'"></el-table-column>
         <el-table-column prop="adgroup_id" label="广告ID" v-if="mode === 'Detail'"></el-table-column>
@@ -106,22 +100,22 @@ export default class ParallelCoordinate extends Vue {
     }
   }
 
-  tableRowClassName(params: any) {
-    let row = params.row;
-    if (this.brushCmbs == null && this.selectedCmb == null) return "";
-    let cmbtargets = row.cmbtargets;
-    let isBrushed =
-      this.brushCmbs == null
-        ? false
-        : this.brushCmbs.data.findIndex((d: any) => d === cmbtargets) !== -1;
-    let isSelected =
-      this.selectedCmb == null
-        ? false
-        : this.selectedCmb.cmbtargets === cmbtargets;
-    if (isSelected === true) return "success-row";
-    else if (isBrushed === true && isSelected === false) return "warning-row";
-    else return "";
-  }
+  // tableRowClassName(params: any) {
+  //   let row = params.row;
+  //   if (this.brushCmbs == null && this.selectedCmb == null) return "";
+  //   let cmbtargets = row.cmbtargets;
+  //   let isBrushed =
+  //     this.brushCmbs == null
+  //       ? false
+  //       : this.brushCmbs.data.findIndex((d: any) => d === cmbtargets) !== -1;
+  //   let isSelected =
+  //     this.selectedCmb == null
+  //       ? false
+  //       : this.selectedCmb.cmbtargets === cmbtargets;
+  //   if (isSelected === true) return "success-row";
+  //   else if (isBrushed === true && isSelected === false) return "warning-row";
+  //   else return "";
+  // }
 
   get canClearBrushes() {
     if (this.mode === "Global")
@@ -145,26 +139,26 @@ export default class ParallelCoordinate extends Vue {
     this.renderChart();
   }
 
-  preprocess(data: any[]) {
-    data.forEach(d => {
-      let keys = Object.keys(d);
-      keys.forEach(key => {
-        if (
-          key === "rank" ||
-          key === "cmbtargets" ||
-          key === "adgroupids" ||
-          key === "aids"
-        )
-          return;
-        let value: any = d[key];
-        if (!Number.isInteger(+value)) {
-          if (key === "ctr") value = +value.toFixed(5);
-          else value = +value.toFixed(3);
-        }
-        d[key] = value;
-      });
-    });
-  }
+  // preprocess(data: any[]) {
+  //   data.forEach(d => {
+  //     let keys = Object.keys(d);
+  //     keys.forEach(key => {
+  //       if (
+  //         key === "rank" ||
+  //         key === "cmbtargets" ||
+  //         key === "adgroupids" ||
+  //         key === "aids"
+  //       )
+  //         return;
+  //       let value: any = d[key];
+  //       if (!Number.isInteger(+value)) {
+  //         if (key === "ctr") value = +value.toFixed(5);
+  //         else value = +value.toFixed(3);
+  //       }
+  //       d[key] = value;
+  //     });
+  //   });
+  // }
 
   @Getter("detailLoaded")
   detailLoaded!: boolean;
@@ -194,7 +188,7 @@ export default class ParallelCoordinate extends Vue {
   handleCoordinate() {
     Bus.$on("send-data", (message: any) => {
       this.initState(message);
-      this.renderChart();
+      if (this.showData === false) this.renderChart();
     });
     Bus.$on("select-cmb", (message: TargetingInfo[] | null) => {
       this.selectedCmb = message;

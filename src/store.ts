@@ -112,20 +112,26 @@ const store: StoreOptions<RootState> = {
       let newGlobalFilter = nextState.globalFilterState;
       let globalFilter = JSON.parse(nextState.globalFilterState);
       let result: any = null;
-      if (oldGlobalFilter !== newGlobalFilter) {
-        let filter = transformPostData(globalFilter, rootGetters['types/types']);
-        result = await service.loadTemplate(Object.assign({ filter }));
-        setTimeout(() => {
-          commit('systemLoadedMutation', true);
-          commit('changeCurrentLogPointer', payload);
-          commit('template/templateMutation', result);
-        }, 50);
-      } else {
-        setTimeout(() => {
-          commit('systemLoadedMutation', true);
-          commit('changeCurrentLogPointer', payload);
-        }, 100);
-      }
+
+      setTimeout(() => {
+        commit('systemLoadedMutation', true);
+        commit('globalFilterMutation', globalFilter);
+        commit('changeCurrentLogPointer', payload);
+      }, 100);
+      // if (oldGlobalFilter !== newGlobalFilter) {
+      //   let filter = transformPostData(globalFilter, rootGetters['types/types']);
+      //   result = await service.loadTemplate(Object.assign({ filter }));
+      //   setTimeout(() => {
+      //     commit('systemLoadedMutation', true);
+      //     commit('changeCurrentLogPointer', payload);
+      //     commit('template/templateMutation', result);
+      //   }, 50);
+      // } else {
+      //   setTimeout(() => {
+      //     commit('systemLoadedMutation', true);
+      //     commit('changeCurrentLogPointer', payload);
+      //   }, 100);
+      // }
     },
 
     async loadAllState({ rootGetters, commit }, payload: any) {
