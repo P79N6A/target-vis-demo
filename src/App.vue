@@ -22,6 +22,7 @@ import Portrait from "@/components/Portrait.vue";
 import AppDialog from "@/components/AppDialog.vue";
 import { init } from "@/utils/init.ts";
 import { Mutation, Action, Getter } from "vuex-class";
+import { defaultGlobalFilter } from "@/utils/init.ts";
 
 import { FilterForm, Types } from "@/models";
 import { TargetingInfo } from "@/models/targeting";
@@ -39,40 +40,70 @@ import { getNextLevelTargets } from "@/utils";
   mounted() {
     const vm: any = this;
     vm.prepare();
-    vm.handleDrilldown();
+    vm.handleCoordinate();
   }
 })
 export default class App extends Vue {
   // 是否打开保存面板
   showDialog: boolean = false;
+
+  currentGlobalFilter = null;
+
   // 处理定向模板
   @Action("getTemplateAction", { namespace: "template" })
-  getTemplateAction() {}
+  getTemplateAction(payload: FilterForm) {}
+
   @Getter("templateLoaded", { namespace: "template" })
   templateLoaded!: boolean;
+
   @Getter("systemLoaded")
   systemLoaded!: boolean;
+
   @Action("loadAllState")
   loadAllState(payload: any) {}
   // 监听
   @Watch("templateLoaded")
   watchTemplateLoaded(nVal: boolean) {
     if (nVal === false) return;
-    // 当初始打开系统时需要根据systemLoaded判断是否加载了原有方案或是完全初始化
-    // if (this.systemLoaded === false) {
-    //   console.log("need init");
-    //   this.loadAllState();
-    // }
-    if (this.systemLoaded === false)
-      this.loadAllState(Object.assign({ type: "Init" }));
+    if (this.systemLoaded === false || this.currentState == null) {
+      let globalFilter = null;
+      if (this.currentState == null) globalFilter = defaultGlobalFilter;
+      else {
+        globalFilter =
+          this.currentGlobalFilter != null
+            ? this.currentGlobalFilter
+            : this.currentState.globalFilterState;
+      }
+      this.loadAllState(
+        Object.assign({
+          ids: null,
+          globalFilterState: JSON.stringify(this.currentGlobalFilter),
+          type: "Init"
+        })
+      );
+      this.currentGlobalFilter = null;
+    }
   }
 
   @Getter("currentOpLog")
   currentOpLog!: any[];
   // 监听
+  // 此监听器负责第一次打开系统或刷新浏览器时处理
   @Watch("typesLoaded")
   watchTypesLoaded(nVal: boolean) {
-    if (nVal === true) this.getTemplateAction();
+    if (nVal === false) return;
+    if (this.currentState == null) {
+      // 证明当前无任何方案加载
+      // 则一切按照默认方案加载
+      this.getTemplateAction(defaultGlobalFilter);
+      this.currentGlobalFilter = defaultGlobalFilter;
+    } else {
+      let globalFilterStr = this.currentState.globalFilter;
+      let globalFilter = JSON.parse(globalFilterStr);
+      this.currentGlobalFilter = globalFilter;
+      this.getTemplateAction(globalFilter);
+    }
+    // if (nVal === true) this.getTemplateAction();
   }
 
   // 处理筛选条件
@@ -86,26 +117,14 @@ export default class App extends Vue {
   @Mutation("resolveState")
   resolveState(payload: any) {}
 
-  @Mutation("restoreAllState")
-  restoreAllState(payload: any) {}
-
-  @Mutation("allMutation", { namespace: "relation" })
-  rallMutation(payload: any) {}
-  // @Mutation("allMutation", { namespace: "combination" })
-  // callMutation(payload: any) {}
-
   // 在每次刷新或打开浏览器时,应该先查找本地是否存在默认方案
   prepare() {
     let result = init();
-    this.resolveState(result.globalState);
     this.getTypesAction();
   }
 
   @Getter("currentOpLog")
   currentState!: any;
-
-  @Getter("globalFilter")
-  globalFilter!: any;
 
   @Getter("template", { namespace: "template" })
   template!: any;
@@ -128,17 +147,24 @@ export default class App extends Vue {
       {},
       (this.$refs["portrait"] as any).controlState
     );
+    // 在详情模式下，数据量可能较大，如果要形成当前状态快照，
+    //需要将详情模式得到的数据清除
     newOp.portraitState.controlState.mode = "Global";
     newOp.portraitState.detailedData = null;
     newOp.combinationState.detailedData = null;
     return newOp;
   }
 
-  handleDrilldown() {
+  @Mutation("systemLoadedMutation")
+  systemLoadedMutation(payload: boolean) {}
+
+  handleCoordinate() {
+    // 保存高亮定向
     Bus.$on("highlight-target", (message: any) => {
       if (this.currentState == null) return;
       this.currentState.highlightedTarget = message;
     });
+    // 筛选定向
     Bus.$on("filter-targets", (message: any) => {
       if (this.currentState == null) return;
       this.loadAllState(
@@ -146,29 +172,44 @@ export default class App extends Vue {
           ids: message,
           type: "Filter",
           message: "筛选定向",
+          globalFilterState: this.currentState.globalFilterState,
           newOp: this.saveCurrentOp()
         })
       );
     });
+    // 用于保存当前选中的定向组合
     Bus.$on("select-cmb", (message: any) => {
       this.currentState.selectedCmb = message;
     });
+    // 用于监听详情模式事件
     Bus.$on("get-detail", (adgroupids: string) => {
       this.loadDetailState(
         Object.assign({
+          globalFilter: this.currentState.globalFilterState,
           ids: this.currentState.targets.map((item: any) => item.id),
           adgroupids
         })
       );
     });
+    // 改变了全局筛选条件
+    // 需要创建新的请求
+    // 先请求模板
+    Bus.$on("change-global-filter", (message: any) => {
+      this.getTemplateAction(JSON.parse(message));
+      this.currentGlobalFilter = JSON.parse(message);
+      this.systemLoadedMutation(false);
+    });
     Bus.$on("drilldown-addState", (message: any) => {
       // 每次下钻时，需要将状态保存起来,但也需要预先判断是否能够下钻
       let clicked = message.drilldown.clicked;
+      // 找到被下钻定向如dmp人群的下一级全部子定向
       let children = getNextLevelTargets(
         this.template,
         clicked.id,
-        this.globalFilter
+        JSON.parse(this.currentState.globalFilterState)
       );
+      // 如果被下钻定向不存在子定向，或子定向频次不符合全局筛选条件
+      // 显示提示信息并返回，此时不会向后端发送请求
       if (children.some((child: any) => child.selected === true) === false) {
         let self: any = this;
         self.$message({
@@ -177,21 +218,24 @@ export default class App extends Vue {
         });
         return;
       }
-
+      // 从现有定向中找出被下钻的定向如dmp人群,将它的选中状态取消,表示计算定向
+      // 关系与定向组合时，dmp人群不参与计算
       let newTargets = this.currentState.targets.map((target: any) => {
         let tmp = Object.assign({}, target);
         if (tmp.id === clicked.id) tmp.selected = false;
         return tmp;
       });
-
+      // 将dmp人群下的所有子定向插入targets数组中，用于计算新的定向关系
+      // 与定向组合
       let idx = newTargets.findIndex((target: any) => target.id === clicked.id);
-
       newTargets.splice(idx, 0, ...children);
-
+      // 每次进行下钻、筛选定向、选择新全局筛选条件均会生成新的状态
+      // 因此需要将当前状态所有更改（高亮、定向模式选择）保存, 形成快照
       this.loadAllState(
         Object.assign({
           type: "Drilldown",
           ids: newTargets,
+          globalFilterState: this.currentState.globalFilterState,
           message: `下钻-${message.drilldown.clicked.name}`,
           newOp: this.saveCurrentOp()
         })
@@ -223,7 +267,7 @@ body {
   display: grid;
   grid-gap: 5px;
   grid-template-rows: minmax(100%, 100%);
-  grid-template-columns: 300px 1fr 45%;
+  grid-template-columns: 15% 1fr 45%;
 }
 #app .bottom {
   display: grid;

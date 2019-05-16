@@ -15,7 +15,7 @@
         <el-tab-pane label="广告属性">
           <el-form
             v-if="form != null"
-            :disabled="!templateLoaded || !typesLoaded"
+            :disabled="!templateLoaded || !typesLoaded || !systemLoaded"
             :label-position="'right'"
             label-width="75px"
           >
@@ -159,7 +159,7 @@
               placement="top"
               :type="index === logPointer ? 'primary' : 'default'"
               @click.native="changeLogPointer(index)"
-              v-for="(log, index) in currentLogs"
+              v-for="(log, index) in logs"
               :key="index"
               :timestamp="log.time"
             >
@@ -201,14 +201,16 @@ import { FilterForm, Types } from "@/models";
 import Bus from "@/charts/event-bus";
 import { TargetingTreeNode } from "@/models/targeting";
 import { getTreeNodes } from "@/utils/index";
+import { defaultGlobalFilter } from "@/utils/init";
 @Component({})
 export default class GlobalControlPanel extends Vue {
   @Getter("typesLoaded", { namespace: "types" })
   typesLoaded!: boolean;
   // 监听globalFilter是为了确认是否加载了历史方案
-  @Getter("globalFilter")
-  globalFilter!: FilterForm;
+  @Getter("logs")
+  logs!: any[];
 
+  // 取消定向筛选
   handleCancelCheckBox() {
     let oldTreeData = this.treeData;
     this.treeData = null;
@@ -216,6 +218,7 @@ export default class GlobalControlPanel extends Vue {
     setTimeout(() => (this.treeData = oldTreeData), 50);
   }
 
+  // 提交定向筛选
   handleCheckbox() {
     let tree: any = this.$refs["tree"];
     let newCheckedNodes = tree.getCheckedNodes();
@@ -267,13 +270,9 @@ export default class GlobalControlPanel extends Vue {
 
   defaultCheckedKey: string[] = [];
 
-  @Watch("currentState")
-  watchCurrentState(nVal: any) {
-    console.log(nVal);
-    if (nVal == null) return;
-    let globalFilterStr = JSON.parse(nVal.globalFilterState);
-    this.form = Object.assign({}, globalFilterStr);
-    this.formStr = JSON.stringify(this.form);
+  @Watch("systemLoaded")
+  watchSystemLoaded(nVal: boolean) {
+    if (nVal === false) return;
     this.treeData = getTreeNodes(
       this.template,
       this.currentState.targets,
@@ -284,27 +283,28 @@ export default class GlobalControlPanel extends Vue {
       .map((t: any) => t.id);
   }
 
+  @Watch("currentState")
+  watchCurrentState(nVal: any) {
+    if (nVal == null) return;
+    if (nVal.globalFilterState === this.formStr) return;
+    let newGlobalFilterStr = JSON.parse(nVal.globalFilterState);
+    if (this.formStr === newGlobalFilterStr) return;
+    this.form = Object.assign({}, newGlobalFilterStr);
+    this.formStr = JSON.stringify(this.form);
+  }
+
   levelTraverse(root: TargetingTreeNode) {
     if (root == null) return;
   }
 
-  @Getter("currentLogs")
-  currentLogs!: any;
+  @Getter("systemLoaded")
+  systemLoaded!: boolean;
+
+  // @Getter("currentLogs")
+  // currentLogs!: any;
 
   @Action("changeCurrentLogPointer")
   changeCurrentLogPointer(payload: number) {}
-
-  @Watch("globalFilter")
-  watchGlobalFilter(nVal: FilterForm, oVal: FilterForm) {
-    this.form = Object.assign({}, nVal);
-    this.formStr = JSON.stringify(this.form);
-    if (
-      this.typesLoaded === true &&
-      JSON.stringify(nVal) !== JSON.stringify(oVal)
-    ) {
-      this.getTemplateAction();
-    }
-  }
 
   @Getter("logPointer")
   logPointer!: number;
@@ -332,11 +332,6 @@ export default class GlobalControlPanel extends Vue {
 
   treeData: any[] | null = null;
 
-  // @Watch("templateLoaded")
-  // watchTemplateLoaded(nVal: boolean) {
-  //   if (nVal === true) this.treeData = getTreeNodes(this.template);
-  // }
-
   @Mutation("globalFilterMutation")
   globalFilterMutation(filter: FilterForm) {}
 
@@ -345,7 +340,7 @@ export default class GlobalControlPanel extends Vue {
   platformSelection: Array<{ value: string; label: string }> = [];
   prodTypeSelection: Array<{ value: string; label: string }> = [];
 
-  form: any = null;
+  form: any = defaultGlobalFilter;
 
   formStr: string = "";
 
@@ -370,8 +365,9 @@ export default class GlobalControlPanel extends Vue {
     let oldFormStr = this.formStr;
     if (newFormStr !== oldFormStr) {
       this.formStr = newFormStr;
-      this.systemLoadedMutation(false);
-      this.globalFilterMutation(this.form);
+      // this.systemLoadedMutation(false);
+      Bus.$emit("change-global-filter", this.formStr);
+      // this.globalFilterMutation(this.form);
     }
   }
 

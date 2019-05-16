@@ -1,25 +1,25 @@
+
+
 // 负责每一次打开浏览器或刷新时,从localstorage中查找是否存在已保存的方案
+
+export const defaultGlobalFilter: any = {
+    siteSet: [],
+    platform: [],
+    prodType: [],
+    industry: [],
+    freq: { lower: 10, upper: 999999999999 },
+    click: { lower: 0, upper: 999999999999 },
+    cpc: { lower: 0, upper: 999999999999 },
+    cost: { lower: 500, upper: 999999999999 },
+    ctr: { lower: 0, upper: 100 },
+    ecpm: { lower: 0, upper: 999999999999 },
+    expo: { lower: 0, upper: 999999999999 }
+};
+
 export function init() {
     let prev = localStorage.getItem('twmp');
     if (prev != null) return JSON.parse(prev);
     else return Object.assign({
-        globalState: {
-            globalFilter: {
-                siteSet: [],
-                platform: [],
-                prodType: [],
-                industry: ['游戏'],
-                freq: { lower: 10, upper: 999999999999 },
-                click: { lower: 0, upper: 999999999999 },
-                cpc: { lower: 0, upper: 999999999999 },
-                cost: { lower: 500, upper: 999999999999 },
-                ctr: { lower: 0, upper: 100 },
-                ecpm: { lower: 0, upper: 999999999999 },
-                expo: { lower: 0, upper: 999999999999 }
-            },
-            idsMap: new Map(),
-            idsPointer: null
-        },
         relationState: {
             opLogs: [{ type: 'Init' }],
             opPointer: "",

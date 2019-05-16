@@ -196,6 +196,7 @@ export default class Portrait extends Vue {
       else
         this.loadTargetFreq(
           Object.assign({
+            globalFilter: this.currentState.globalFilterState,
             ids: this.ids
               .filter((id: any) => id.selected === true)
               .map((item: any) => item.id),

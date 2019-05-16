@@ -32,8 +32,8 @@ export default class CommonService {
         adgroupids = adgroupids.split(",").map((a: any) => "'" + a + "'").join(",");
         let newCondition = Object.assign(Object.assign({}, payload, { adgroupids }));
         let moreDetail = Object.assign({
-            filter: {},
             adgroupids,
+            filter: payload.filter,
             ids: []
         });
         return Promise.all([

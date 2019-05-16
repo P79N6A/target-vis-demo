@@ -23,9 +23,9 @@ const namespaced: boolean = true;
 const actions: ActionTree<TemplateState, RootState> = {
     // 当获取模板成功后,此时应该是系统开开被启动
     // 以此为信号,开始为各个视图发送数据
-    async getTemplateAction({ commit, dispatch, rootGetters }) {
+    async getTemplateAction({ commit, rootGetters }, payload: any) {
         commit('templateLoadedMutation', false);
-        let filter = transformPostData(rootGetters['globalFilter'], rootGetters['types/types']);
+        let filter = transformPostData(payload, rootGetters['types/types']);
         let result: any = await service.loadTemplate(Object.assign({ filter }));
         commit('templateMutation', result);
         commit('templateLoadedMutation', true);

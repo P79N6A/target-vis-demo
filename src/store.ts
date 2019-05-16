@@ -17,7 +17,6 @@ let targetFreqId: number = 0;
 Vue.use(Vuex)
 
 export interface RootState {
-  globalFilter: FilterForm | null;
   systemLoaded: boolean;
   detailLoaded: boolean;
   targetFreqLoaded: boolean;
@@ -29,7 +28,6 @@ export interface RootState {
 
 const store: StoreOptions<RootState> = {
   state: {
-    globalFilter: null,
     systemLoaded: false,
     detailLoaded: false,
     targetFreqLoaded: false,
@@ -39,10 +37,11 @@ const store: StoreOptions<RootState> = {
     logPointer: -1
   },
   actions: {
+
     async loadTargetFreq({ rootGetters, commit }, payload: any) {
       let currentRequestId = ++targetFreqId;
       commit('targetFreqLoadedMutation', false);
-      let filter = transformPostData(rootGetters['globalFilter'], rootGetters['types/types']);
+      let filter = transformPostData(JSON.parse(payload.globalFilter), rootGetters['types/types']);
       let map: any = {
         'site_set': 'siteSet',
         'ad_platform_type': 'platform',
@@ -76,7 +75,7 @@ const store: StoreOptions<RootState> = {
     async loadDetailState({ rootGetters, commit }, payload: any) {
       let currentRequestId = ++stateId;
       commit('detailedLoadedMutation', false);
-      let filter = transformPostData(rootGetters['globalFilter'], rootGetters['types/types']);
+      let filter = transformPostData(JSON.parse(payload.globalFilter), rootGetters['types/types']);
       let result: any = await service.getDetail(Object.assign({
         ids: [],
         adgroupids: payload.adgroupids,
@@ -96,42 +95,27 @@ const store: StoreOptions<RootState> = {
 
     async changeCurrentLogPointer({ commit, getters, rootGetters }, payload: number) {
       commit('systemLoadedMutation', false);
-
-
       // 切换状态时需要判断是否有新的全局条件
       // 即从currentLogPointer - payload 之间是否有新全局筛选条件
-
-
-
       let key = getters['logs'][payload].key;
       let index = getters['opLogs'].findIndex((op: any) => key === op.key);
       let nextState = getters['opLogs'][index];
       let currentState = getters['currentOpLog'];
-
       let oldGlobalFilter = currentState.globalFilterState;
       let newGlobalFilter = nextState.globalFilterState;
       let globalFilter = JSON.parse(nextState.globalFilterState);
       let result: any = null;
-
+      if (oldGlobalFilter !== newGlobalFilter) {
+        let filter = transformPostData(globalFilter, rootGetters['types/types']);
+        result = await service.loadTemplate(Object.assign({ filter }));
+        commit('template/templateMutation', result);
+      }
+      setTimeout(() => {
+        commit('changeCurrentLogPointer', payload);
+      }, 50);
       setTimeout(() => {
         commit('systemLoadedMutation', true);
-        commit('globalFilterMutation', globalFilter);
-        commit('changeCurrentLogPointer', payload);
-      }, 100);
-      // if (oldGlobalFilter !== newGlobalFilter) {
-      //   let filter = transformPostData(globalFilter, rootGetters['types/types']);
-      //   result = await service.loadTemplate(Object.assign({ filter }));
-      //   setTimeout(() => {
-      //     commit('systemLoadedMutation', true);
-      //     commit('changeCurrentLogPointer', payload);
-      //     commit('template/templateMutation', result);
-      //   }, 50);
-      // } else {
-      //   setTimeout(() => {
-      //     commit('systemLoadedMutation', true);
-      //     commit('changeCurrentLogPointer', payload);
-      //   }, 100);
-      // }
+      }, 50);
     },
 
     async loadAllState({ rootGetters, commit }, payload: any) {
@@ -143,40 +127,36 @@ const store: StoreOptions<RootState> = {
 
       let ids: TargetingInfo[] = [];
       if (payload.ids != null) ids = payload.ids;
-      else ids = getInitTargetingIds(rootGetters['template/template'], rootGetters['globalFilter']);
-
-
-      let filter = transformPostData(rootGetters['globalFilter'], rootGetters['types/types']);
-      let result = await service.loadAllState(Object.assign({
-        filter,
-        ids: ids.filter((id: any) => id.selected === true).map(id => id.id),
-        and: [],
-        or: [],
-        patterns: []
-      }));
+      else ids = getInitTargetingIds(rootGetters['template/template'], JSON.parse(payload.globalFilterState));
+      let filter = transformPostData(JSON.parse(payload.globalFilterState), rootGetters['types/types']);
+      let result = await service.loadAllState(
+        Object.assign({
+          filter,
+          ids: ids.filter((id: any) => id.selected === true).map(id => id.id),
+          and: [],
+          or: [],
+          patterns: []
+        }));
       // 如果发出了多次请求,那么根据currentRequestId与requestId判断是否为想要接收的请求
       if (currentRequestId != requestId) return;
       // 数据加载出错
       if (result == null) {
-        alert("全局数据加载出错!");
+        alert("数据加载出错，请重试");
         return;
       }
       // 将广告主画像数据转换
       transformPortraitResult(rootGetters['types/types'], result.portrait);
-      // 如果当前进行的是下钻操作,则需要将对下钻前状态做出的修改进行保存
-      if (payload.type !== 'Init' && payload.newOp != null)
-        commit('saveCurrentOP', payload.newOp);
+      if (payload.newOp != null)
+        commit('saveCurrentOp', payload.newOp);
 
       commit('loadAllStateMutation', Object.assign({
         type: payload.type,
-        message: payload.type === 'Init' ? "新全局筛选" : payload.message,
+        message: payload.type === 'Init' ? "改变全局筛选条件" : payload.message,
         key: Date.now() + "",
         selectedCmb: null,
-        filteredTargets: null,
         highlightedTarget: null,
         targets: ids,
-        globalFilterState: JSON.stringify(Object.assign({}, rootGetters['globalFilter'])),
-
+        globalFilterState: payload.globalFilterState,
         relationState: {
           data: result['relations'],
           controlState: { index: 'freq' }
@@ -201,17 +181,18 @@ const store: StoreOptions<RootState> = {
           }
         }
       }));
-      commit('detailedLoadedMutation', true);
-      commit('systemLoadedMutation', true);
-      commit('targetFreqLoadedMutation', true);
+      setTimeout(() => {
+        commit('detailedLoadedMutation', true);
+        commit('systemLoadedMutation', true);
+        commit('targetFreqLoadedMutation', true);
+      }, 50);
     }
   },
   getters: {
     targetFreqLoaded(store) { return store.targetFreqLoaded },
-    globalFilter(store) { return store.globalFilter },
-    currentLogs(store) {
-      return store.logs;
-    },
+    // currentLogs(store) {
+    //   return store.logs
+    // },
     logs(store) {
       return store.logs;
     },
@@ -298,14 +279,12 @@ const store: StoreOptions<RootState> = {
       // }
       // store.opPointer = payload.key;
     },
-    saveCurrentOP(store, payload: any) {
+    saveCurrentOp(store, payload: any) {
       let index = store.opLogs.findIndex((op: any) => op.key === payload.key);
       store.opLogs[index] = payload;
     },
     resolveState(store, payload: any) {
-      store.globalFilter = payload.globalFilter;
     },
-    globalFilterMutation(store, payload: FilterForm) { store.globalFilter = Object.assign({}, payload) }
   },
   modules: {
     types,
