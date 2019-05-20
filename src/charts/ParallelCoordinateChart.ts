@@ -4,6 +4,7 @@ import Bus from '@/charts/event-bus';
 import { CombinationData } from '@/models/targeting';
 import { sorter } from './CombinationTargetChart';
 import { throttle } from '@/utils/optimize';
+import { renderQueue } from '@/utils/render-queue';
 
 export interface LineDatum {
     name: string;
@@ -31,6 +32,7 @@ export default class ParallelCoordinateChart {
     hoverContainer: any = new zrender.Group();
     brushHoverContainer: any = new zrender.Group();
     map: Map<string, any> = new Map();
+    renderQueue: any = null;
 
 
     customLine: Element = document.createElement('custom-line');
@@ -289,12 +291,13 @@ export default class ParallelCoordinateChart {
                 let [x, y] = [selectionGroup.position[1], selectionRect.shape.height];
                 if (y > 0) {
                     this.yBrushes[name] = [x, x + y];
-                    let brushGroup = this.axisContainer.childOfName(name)
-                    brushGroup.childOfName('axis-line').attr('style', { textFill: '#409EFF' });
+                    // let brushGroup = this.axisContainer.childOfName(name);
+                    // console.log(brushGroup);
+                    // brushGroup.childOfName('axis-line-label').attr('style', { textFill: '#409EFF' });
                 }
                 else {
                     this.yBrushes[name] = null;
-                    this.axisContainer.childOfName(name).childOfName('axis-line').attr('style', { textFill: '#000' });
+                    // this.axisContainer.childOfName(name).childOfName('axis-line-label').attr('style', { textFill: '#000' });
                 }
                 this.handleBrush();
             };
@@ -375,15 +378,15 @@ export default class ParallelCoordinateChart {
             let group = axisGroup.childOfName('brush-y').childOfName('selection');
             let labelGroup = group.childOfName('labels');
             if (labelGroup == null) {
-                labelGroup = new zrender.Group({ name: 'labels' });
+                labelGroup = new zrender.Group({ z: 100, name: 'labels' });
                 group.add(labelGroup);
             }
             labelGroup.removeAll();
             axisGroup.childOfName('ticks').show();
-            axisGroup.childOfName('axis-line').attr('style', { textFill: '#000' });
+            // axisGroup.childOfName('axis-line-label').attr('style', { textFill: '#000' });
             if (this.yBrushes[brush] == null) return;
             axisGroup.childOfName('ticks').hide();
-            axisGroup.childOfName('axis-line').attr('style', { textFill: '#409EFF' })
+            // axisGroup.childOfName('axis-line-label').attr('style', { textFill: '#409EFF' });
             let scale = this.yScales[brush];
             let format = this.yFormats[brush];
             let [lower, upper] = [scale.invert(this.yBrushes[brush][1]), scale.invert(this.yBrushes[brush][0])];
@@ -395,10 +398,12 @@ export default class ParallelCoordinateChart {
 
             let selectionRect = group.childOfName('selection-rect').shape['height'];
             let upperLabel = new zrender.Text({
+
                 style: { text: format(upper), textAlign: 'left', textVerticalAlign: 'bottom' },
                 position: [20, -5]
             });
             let lowerLabel = new zrender.Text({
+
                 style: { text: format(lower), textAlign: 'left', textVerticalAlign: 'top' },
                 position: [20, selectionRect + 5]
             });
@@ -454,10 +459,10 @@ export default class ParallelCoordinateChart {
             return this.lineGenerator(d, axises);
         });
         lines.forEach((lineData: any) => {
-            let opacity = this.mode === 'Global' ? 1 : 0.7;
+            let opacity = this.mode === 'Global' ? this.globalLineOpacity : this.detailLineOpacity;
             let line = new zrender.Polyline({
                 shape: { points: lineData.points },
-                style: { opacity: 1, stroke: '#c23531' },
+                style: { opacity: opacity, stroke: '#c23531' },
                 z: 30
             });
             this.brushHoverContainer.add(line);
@@ -481,9 +486,7 @@ export default class ParallelCoordinateChart {
             let threshold = ticks[3] + (ticks[3] - ticks[1]) * 1.5;
             ticks.push(threshold);
         } else {
-
             ticks = scale.ticks(5);
-
         }
         let domain = scale.domain();
         if (ticks[ticks.length - 1] < domain[1]) ticks.push(domain[1]);
@@ -515,7 +518,7 @@ export default class ParallelCoordinateChart {
     paint(data: any[]) {
         this.lineContainer.removeAll();
         let opacity = this.mode === 'Global' ? this.globalLineOpacity : this.detailLineOpacity;
-        data.forEach((d, i) => {
+        this.renderQueue = renderQueue((d: any) => {
             let polyline = new zrender.Polyline({
                 shape: { points: d.points },
                 style: { lineWidth: 1, stroke: '#d94e5d', opacity: opacity },
@@ -524,16 +527,18 @@ export default class ParallelCoordinateChart {
             });
             this.lineContainer.add(polyline);
         });
-        this.lineContainer.attr('active', true);
+        this.renderQueue(data, () => {
+            this.resolveState();
+            this.zr.refresh();
+            this.lineContainer.attr('active', true);
+        });
     }
 
     resolveState() {
-        if (this.activeLine != null) {
+        if (this.activeLine != null)
             this.activate(this.activeLine.cmbtargets);
-        }
-        else {
+        else
             this.deactivate();
-        }
         this.handleBrush(false);
     }
 
@@ -576,7 +581,7 @@ export default class ParallelCoordinateChart {
         if (condition === false && this.lineContainer.active === true) {
             let opacity = this.mode === 'Detail' ? 0 : 0.2;
             this.lineContainer.eachChild((child: any) => {
-                child.attr('style', { opacity: opacity })
+                child.attr('style', { opacity: opacity });
             });
             this.lineContainer.attr('active', false);
         } else if (condition === true && this.lineContainer.active === false) {

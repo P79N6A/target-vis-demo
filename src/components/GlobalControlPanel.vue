@@ -21,7 +21,7 @@
           >
             <el-form-item label="流量:" prop="siteSet">
               <el-select
-                :placeholder="form.siteSet.length === 0 ? '搜索或选择流量' : ''"
+                :placeholder="form.siteSet.length === 0 ? '搜索流量' : ''"
                 filterable
                 v-model="form.siteSet"
                 multiple
@@ -36,7 +36,7 @@
             </el-form-item>
             <el-form-item label="行业:">
               <el-select
-                :placeholder="form.industry.length === 0 ? '搜索或选择行业' : ''"
+                :placeholder="form.industry.length === 0 ? '搜索行业' : ''"
                 filterable
                 v-model="form.industry"
                 multiple
@@ -50,7 +50,7 @@
               </el-select>
             </el-form-item>
             <el-form-item label="平台:">
-              <el-select placeholder="搜索或选择平台" filterable v-model="form.platform" multiple>
+              <el-select placeholder="搜索平台" filterable v-model="form.platform" multiple>
                 <el-option
                   v-for="(p, index) in platformSelection"
                   :key="index"
@@ -60,13 +60,19 @@
               </el-select>
             </el-form-item>
             <el-form-item label="商品类型:">
-              <el-select placeholder="搜索或选择商品类型" filterable v-model="form.prodType" multiple>
+              <el-select placeholder="搜索商品类型" filterable v-model="form.prodType" multiple>
                 <el-option
                   v-for="(p, index) in prodTypeSelection"
                   :key="index"
                   :label="p.label"
                   :value="p.label"
                 ></el-option>
+              </el-select>
+            </el-form-item>
+            <el-form-item label="数据范围">
+              <el-select v-model="form.timeRange">
+                <el-option :label="'最近7天'" :value="7"></el-option>
+                <el-option :label="'最近30天'" :value="30"></el-option>
               </el-select>
             </el-form-item>
             <el-form-item label="定向频次:">
@@ -124,6 +130,7 @@
                 </el-col>
               </el-row>
             </el-form-item>
+
             <el-form-item label="Ctr:">
               <el-row>
                 <el-col :span="11">
@@ -146,7 +153,6 @@
                 </el-col>
               </el-row>
             </el-form-item>
-
             <el-form-item>
               <el-button @click="reset">重置</el-button>
               <el-button @click="onSubmit" type="primary">确认</el-button>
@@ -402,6 +408,9 @@ export default class GlobalControlPanel extends Vue {
 .line {
   text-align: center;
   font-weight: bold;
+}
+.global-control-panel .el-timeline {
+  padding-left: 5px;
 }
 </style>
 

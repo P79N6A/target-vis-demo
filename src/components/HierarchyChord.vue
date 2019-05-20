@@ -61,8 +61,12 @@ export default class HierarchyChord extends Vue {
   @Getter("systemLoaded")
   systemLoaded!: boolean;
 
+  @Getter("template/templateLoaded")
+  templateLoaded!: boolean;
+
   get loadingText() {
-    if (this.systemLoaded === false) return "Loading...";
+    if (this.templateLoaded === false) return "定向模板加载中...";
+    if (this.systemLoaded === false) return "数据加载中...";
     else return "";
   }
 

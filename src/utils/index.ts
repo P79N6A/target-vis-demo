@@ -1,6 +1,8 @@
 import { TargetingTreeNode, TargetingInfo } from '@/models/targeting';
 import { FilterForm, RelationPostData, Types } from '@/models';
+import moment from 'moment';
 
+// 依据返回的定向节点数组，构造定向模板树
 export function buildTree(raw: TargetingTreeNode[]): TargetingTreeNode {
     let root: TargetingTreeNode | null = null;
     let map = new Map<string, TargetingTreeNode>();
@@ -20,22 +22,7 @@ export function buildTree(raw: TargetingTreeNode[]): TargetingTreeNode {
     return root;
 }
 
-// export function getTreeNodes(root: TargetingTreeNode, targets: TargetingInfo[], freq: any) {
-//     let result = root.children.map(item => Object.assign({ freq: item.freq, id: item.id, level: item.level, name: item.name, isLeaf: false }));
-//     let tmpTargets = targets.map((item: any) => Object.assign({ freq: item.freq, id: item.id, level: item.level, name: item.name, parentId: item.parentId, disabled: item.disabled, isLeaf: true, default: item.default }));
-//     tmpTargets = tmpTargets.concat(result);
-//     tmpTargets.forEach((target: any) => {
-//         if ((target.freq < freq.lower || target.freq > freq.upper) && target.level > 1) target.disabled = true;
-//         let parent: any = tmpTargets.find(t => t.id === target.parentId);
-//         if (parent == null) return;
-//         if (parent.children == null) {
-//             parent.children = [];
-//             parent.isLeaf = false;
-//         }
-//         parent.children.push(target);
-//     });
-//     return tmpTargets.filter(t => t.level === 1);
-// }
+
 
 export function getTreeNodes(root: TargetingTreeNode, targets: TargetingInfo[], freq: any) {
     let result = root.children.map(item => Object.assign({ freq: item.freq, id: item.id, level: item.level, name: item.name, isLeaf: false }));
@@ -54,23 +41,6 @@ export function getTreeNodes(root: TargetingTreeNode, targets: TargetingInfo[], 
     return tmpTargets.filter(t => t.level === 1);
 }
 
-
-// 返回初始选择的定向
-// export function getInitTargetingIds(tree: TargetingTreeNode, freqLimit: any, filters: string[] = ['6', '7', '8']) {
-//     let ids: any[] = [];
-//     let freq = freqLimit.freq;
-//     tree.children.forEach((node: any) => {
-//         node.children.forEach((n: any) => {
-//             let tmpTarget = Object.assign({ cost: n.cost, freq: n.freq, level: n.level, parentId: n.parentId, id: n.id, name: n.name });
-//             if (tmpTarget.freq < freq.lower || n.freq > freq.upper) tmpTarget.disabled = true;
-//             else tmpTarget.disabled = false;
-//             if (filters.indexOf(tmpTarget.parentId) === -1) tmpTarget.default = true;
-//             else tmpTarget.default = false;
-//             ids.push(tmpTarget);
-//         });
-//     });
-//     return ids;
-// }
 
 export function getInitTargetingIds(tree: TargetingTreeNode, freqLimit: any, filters: string[] = ['6', '7', '8']) {
     let ids: any[] = [];
@@ -121,6 +91,12 @@ export function getNextLevelTargets(template: TargetingTreeNode, parentId: strin
     });
 }
 
+
+/**
+ * 将全局筛选面板值转换为filter参数
+ * @param globalFilter 全局筛选面板的值
+ * @param types 流量、商品类型、平台等具体值
+ */
 export function transformPostData(globalFilter: FilterForm, types: Types) {
     let filter: any = {};
     filter.click = globalFilter.click;
@@ -129,6 +105,9 @@ export function transformPostData(globalFilter: FilterForm, types: Types) {
     filter.ecpm = globalFilter.ecpm;
     filter.cost = globalFilter.cost;
     filter.expo = globalFilter.expo;
+    filter.timerange = globalFilter.timeRange === 7 ?
+        [moment().subtract(7, 'd').format("YYYYMMDD"), moment().subtract(1, 'd').format("YYYYMMDD")] :
+        [moment().subtract(30, 'd').format("YYYYMMDD"), moment().subtract(1, 'd').format("YYYYMMDD")];
     if (globalFilter.siteSet.length !== 0)
         filter.site_set = globalFilter.siteSet.map(s => {
             let index: number = types.siteSet.findIndex(item => item.label === s);

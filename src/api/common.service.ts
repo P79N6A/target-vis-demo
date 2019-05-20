@@ -27,6 +27,7 @@ export default class CommonService {
         return this.httpModule.post('/getpattern', payload);
     }
 
+    // 获取详情模式数据
     getDetail(payload: any) {
         let adgroupids = payload.adgroupids;
         adgroupids = adgroupids.split(",").map((a: any) => "'" + a + "'").join(",");
@@ -39,7 +40,7 @@ export default class CommonService {
         return Promise.all([
             this.httpModule.post('/condicmbdata', newCondition),
             this.httpModule.post('/adsdata', Object.assign({ adgroupids })),
-            this.httpModule.post('/condicmbdata', moreDetail)
+            // this.httpModule.post('/condicmbdata', moreDetail)
         ]).then((res: any) => {
             return Object.assign({
                 portrait: Object.assign({

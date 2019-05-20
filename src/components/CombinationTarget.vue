@@ -115,9 +115,11 @@ export default class CombinationTarget extends Vue {
     this.initData(this.data);
     this.process(this.data);
   }
-
+  @Getter("template/templateLoaded")
+  templateLoaded!: boolean;
   get loadingText() {
-    if (this.systemLoaded === false) return "Loading...";
+    if (this.templateLoaded === false) return "定向模板加载中...";
+    if (this.systemLoaded === false) return "数据加载中...";
     else return "";
   }
 
@@ -477,7 +479,7 @@ export default class CombinationTarget extends Vue {
 .combination-target.chart-container .title-container {
   overflow-x: hidden;
   position: relative;
-  margin: 0 60px;
+  margin-left: 60px;
   height: 80px;
   font-size: 12px;
 }

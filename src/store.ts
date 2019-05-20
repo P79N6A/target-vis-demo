@@ -21,7 +21,6 @@ export interface RootState {
   detailLoaded: boolean;
   targetFreqLoaded: boolean;
   opLogs: any;
-  opPointer: number;
   logs: any;
   logPointer: number;
 }
@@ -32,12 +31,11 @@ const store: StoreOptions<RootState> = {
     detailLoaded: false,
     targetFreqLoaded: false,
     opLogs: [],
-    opPointer: -1,
     logs: [],
     logPointer: -1
   },
   actions: {
-
+    // 针对广告指标图设计的接口
     async loadTargetFreq({ rootGetters, commit }, payload: any) {
       let currentRequestId = ++targetFreqId;
       commit('targetFreqLoadedMutation', false);
@@ -256,34 +254,12 @@ const store: StoreOptions<RootState> = {
       }));
       store.logPointer = len - 1;
       if (store.opLogs.length != 0)
-        store.opLogs = store.opLogs.filter((op: any) => store.logs.findIndex((log: any) => log.key === op.key) !== -1);
-      // 每次插入新的数据时，应该判断是否只是增加了新的数据而不是直接替换
-      // 如 1 -> 2 -> 3   或 1 -> new2
-      // if (store.logs.length === 0 || payload.type === 'Init') {
-      //   let len = store.logs.push(Object.assign({
-      //     step: payload.key,
-      //     data: [Object.assign({ type: payload.type, key: payload.key, message: payload.message })]
-      //   }));
-      //   store.logPointer = len - 1
-      // }
-      // else {
-
-      //   let activeStep = store.logs[store.logPointer].step;
-      //   let activeLogs = store.logs[store.logPointer].data.map((log: any) => Object.assign({}, log));
-      //   store.logs.splice(store.logPointer + 1, store.logs.length - store.logPointer - 1);
-      //   let activeStepIndex = activeLogs.findIndex((item: any) => item.key === activeStep);
-      //   activeLogs.splice(activeStepIndex + 1, activeLogs.length - activeStepIndex - 1);
-      //   activeLogs.push(Object.assign({ type: payload.type, key: payload.key, message: payload.message }));
-      //   store.logs.push({ step: payload.key, data: activeLogs });
-      //   store.logPointer = store.logs.length - 1;
-      // }
-      // store.opPointer = payload.key;
+        store.opLogs = store.opLogs.filter((op: any) =>
+          store.logs.findIndex((log: any) => log.key === op.key) !== -1);
     },
     saveCurrentOp(store, payload: any) {
       let index = store.opLogs.findIndex((op: any) => op.key === payload.key);
       store.opLogs[index] = payload;
-    },
-    resolveState(store, payload: any) {
     },
   },
   modules: {

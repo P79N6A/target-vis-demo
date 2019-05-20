@@ -13,6 +13,7 @@ export interface FilterForm {
     platform: Array<string>;
     prodType: Array<string>;
     industry: Array<string>;
+    timeRange: number;
     click: { gte: number, lte: number | string };
     cpc: { gte: number, lte: number | string };
     ctr: { gte: number, lte: number | string };

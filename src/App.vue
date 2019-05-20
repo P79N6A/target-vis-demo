@@ -20,7 +20,7 @@ import GlobalControlPanel from "@/components/GlobalControlPanel.vue";
 import CombinationTarget from "@/components/CombinationTarget.vue";
 import Portrait from "@/components/Portrait.vue";
 import AppDialog from "@/components/AppDialog.vue";
-import { init } from "@/utils/init.ts";
+import { findState } from "@/utils/init.ts";
 import { Mutation, Action, Getter } from "vuex-class";
 import { defaultGlobalFilter } from "@/utils/init.ts";
 
@@ -49,6 +49,8 @@ export default class App extends Vue {
 
   currentGlobalFilter = null;
 
+  preload: boolean = false;
+
   // 处理定向模板
   @Action("getTemplateAction", { namespace: "template" })
   getTemplateAction(payload: FilterForm) {}
@@ -59,12 +61,30 @@ export default class App extends Vue {
   @Getter("systemLoaded")
   systemLoaded!: boolean;
 
+  @Mutation("detailedLoadedMutation")
+  detailedLoadedMutation(payload: boolean) {}
+
+  @Mutation("targetFreqLoadedMutation")
+  targetFreqLoadedMutation(payload: boolean) {}
+
   @Action("loadAllState")
   loadAllState(payload: any) {}
   // 监听
   @Watch("templateLoaded")
   watchTemplateLoaded(nVal: boolean) {
     if (nVal === false) return;
+    // 如果有方案加载, 那么此时应特殊处理
+    if (
+      this.systemLoaded === false &&
+      this.currentState != null &&
+      this.preload === false
+    ) {
+      this.preload = true;
+      this.systemLoadedMutation(true);
+      this.detailedLoadedMutation(true);
+      this.targetFreqLoadedMutation(true);
+      return;
+    }
     if (this.systemLoaded === false || this.currentState == null) {
       let globalFilter = null;
       if (this.currentState == null) globalFilter = defaultGlobalFilter;
@@ -98,7 +118,8 @@ export default class App extends Vue {
       this.getTemplateAction(defaultGlobalFilter);
       this.currentGlobalFilter = defaultGlobalFilter;
     } else {
-      let globalFilterStr = this.currentState.globalFilter;
+      // 有保存的方案，按此方案呈现视图
+      let globalFilterStr = this.currentState.globalFilterState;
       let globalFilter = JSON.parse(globalFilterStr);
       this.currentGlobalFilter = globalFilter;
       this.getTemplateAction(globalFilter);
@@ -117,10 +138,23 @@ export default class App extends Vue {
   @Mutation("resolveState")
   resolveState(payload: any) {}
 
+  @Mutation("loadAllStateMutation")
+  loadAllStateMutation(payload: any) {}
+
   // 在每次刷新或打开浏览器时,应该先查找本地是否存在默认方案
   prepare() {
-    let result = init();
-    this.getTypesAction();
+    findState((payload: any) => {
+      if (payload != null) {
+        Bus.$emit(
+          "has-default-project",
+          Object.assign({ key: payload.key, title: payload.title })
+        );
+        this.loadAllStateMutation(payload.state);
+      } else {
+        Bus.$emit("has-default-project", null);
+      }
+      this.getTypesAction();
+    });
   }
 
   @Getter("currentOpLog")
@@ -267,7 +301,7 @@ body {
   display: grid;
   grid-gap: 5px;
   grid-template-rows: minmax(100%, 100%);
-  grid-template-columns: 15% 1fr 45%;
+  grid-template-columns: minmax(250px, 15%) 1fr 45%;
 }
 #app .bottom {
   display: grid;

@@ -11,7 +11,7 @@
         <el-dropdown-menu slot="dropdown">
           <el-dropdown-item command="siteSet">流量</el-dropdown-item>
           <el-dropdown-item command="industry">行业</el-dropdown-item>
-          <el-dropdown-item command="prodType">产品类型</el-dropdown-item>
+          <el-dropdown-item command="prodType">商品类型</el-dropdown-item>
           <el-dropdown-item command="platform">平台</el-dropdown-item>
         </el-dropdown-menu>
       </el-dropdown>
@@ -70,7 +70,7 @@ export default class Portrait extends Vue {
     if (this.controlState.mode === "Global") {
       if (this.controlState.types === "siteSet") return "流量";
       if (this.controlState.types === "industry") return "行业";
-      if (this.controlState.types === "prodType") return "产品类型";
+      if (this.controlState.types === "prodType") return "商品类型";
       if (this.controlState.types === "platform") return "平台";
     } else {
       if (this.types === "siteSet") return "流量";
@@ -81,11 +81,11 @@ export default class Portrait extends Vue {
 
     return "";
   }
-
+  @Getter("template/templateLoaded")
+  templateLoaded!: boolean;
   get loadingText() {
-    if (this.systemLoaded === false) return "Loading...";
-    if (this.detailLoaded === false) return "加载详情数据...";
-    if (this.targetFreqLoaded === false) return "加载定向频次数据...";
+    if (this.templateLoaded === false) return "定向模板加载中...";
+    if (this.systemLoaded === false) return "数据加载中...";
     else return "";
   }
 
@@ -145,7 +145,6 @@ export default class Portrait extends Vue {
     if (command == this.types) return;
     this.types = command;
     if (this.controlState.mode !== "Detail") this.controlState.types = command;
-
     this.fixTargetFreq();
   }
 

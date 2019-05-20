@@ -45,26 +45,41 @@ export default class ParallelCoordinate extends Vue {
   chart!: any;
   detailedData: any = null;
   showData: boolean = false;
+
+  @Getter("template/templateLoaded")
+  templateLoaded!: boolean;
   get loadingText() {
-    if (this.systemLoaded === false) return "Loading...";
-    if (this.detailLoaded === false) return "加载详情数据...";
-    return "";
+    if (this.templateLoaded === false) return "定向模板加载中...";
+    if (this.systemLoaded === false) return "全局数据加载中...";
+    if (this.detailLoaded === false) return "详情数据加载中";
+    else return "";
   }
 
   get tableData() {
-    if (this.mode === "Global") {
-      if (this.brushCmbs == null) return this.data;
-      else
-        return this.data.filter(
-          (d: any) => this.brushCmbs.data.indexOf(d.cmbtargets) != -1
-        );
-    } else {
-      if (this.detailedBrush == null) return this.detailedData;
-      else
-        return this.detailedData.filter(
-          (d: any) => this.detailedBrush.data.indexOf(d.adgroup_id) != -1
-        );
-    }
+    if (this.mode === "Global")
+      return this.data.filter(
+        (d: any) =>
+          this.brushCmbs == null ||
+          this.brushCmbs.data.indexOf(d.cmbtargets) !== -1
+      );
+    else
+      return this.detailedData.filter(
+        (d: any) =>
+          this.detailedBrush == null ||
+          this.detailedBrush.data.indexOf(d.adgroup_id) !== -1
+      );
+    // if (this.brushCmbs == null) return this.data;
+    // else
+    //   return this.data.filter(
+    //     (d: any) => this.brushCmbs.data.indexOf(d.cmbtargets) != -1
+    //   );
+    // else {
+    //   if (this.detailedBrush == null) return this.detailedData;
+    //   else
+    //     return this.detailedData.filter(
+    //       (d: any) => this.detailedBrush.data.indexOf(d.adgroup_id) != -1
+    //     );
+    // }
   }
 
   @Getter("systemLoaded")
@@ -99,24 +114,6 @@ export default class ParallelCoordinate extends Vue {
       this.renderChart();
     }
   }
-
-  // tableRowClassName(params: any) {
-  //   let row = params.row;
-  //   if (this.brushCmbs == null && this.selectedCmb == null) return "";
-  //   let cmbtargets = row.cmbtargets;
-  //   let isBrushed =
-  //     this.brushCmbs == null
-  //       ? false
-  //       : this.brushCmbs.data.findIndex((d: any) => d === cmbtargets) !== -1;
-  //   let isSelected =
-  //     this.selectedCmb == null
-  //       ? false
-  //       : this.selectedCmb.cmbtargets === cmbtargets;
-  //   if (isSelected === true) return "success-row";
-  //   else if (isBrushed === true && isSelected === false) return "warning-row";
-  //   else return "";
-  // }
-
   get canClearBrushes() {
     if (this.mode === "Global")
       return this.brushCmbs != null && this.selectedCmb == null;
