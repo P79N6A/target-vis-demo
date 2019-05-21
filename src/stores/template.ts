@@ -33,6 +33,10 @@ const actions: ActionTree<TemplateState, RootState> = {
 };
 
 const mutations: MutationTree<TemplateState> = {
+    resolveTemplateMutation(store, payload: TargetingTreeNode) {
+        store.templateLoaded = true;
+        store.template = payload;
+    },
     templateMutation(store, payload: TargetingTreeNode[]) {
         let root = buildTree(payload);
         store.template = root;

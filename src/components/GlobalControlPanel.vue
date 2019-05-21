@@ -131,7 +131,7 @@
               </el-row>
             </el-form-item>
 
-            <el-form-item label="Ctr:">
+            <el-form-item label="Ctr (%):">
               <el-row>
                 <el-col :span="11">
                   <el-input v-model="form.ctr.lower"></el-input>

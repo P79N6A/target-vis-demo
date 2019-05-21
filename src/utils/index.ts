@@ -99,12 +99,22 @@ export function getNextLevelTargets(template: TargetingTreeNode, parentId: strin
  */
 export function transformPostData(globalFilter: FilterForm, types: Types) {
     let filter: any = {};
-    filter.click = globalFilter.click;
-    filter.ctr = globalFilter.ctr;
-    filter.cpc = globalFilter.cpc;
-    filter.ecpm = globalFilter.ecpm;
-    filter.cost = globalFilter.cost;
-    filter.expo = globalFilter.expo;
+    let indexes = ['click', 'ctr', 'cpc', 'ecpm', 'cost', 'expo'];
+    indexes.forEach((key: string) => {
+        let lower = (globalFilter as any)[key]['lower'];
+        let upper = (globalFilter as any)[key]['upper'];
+        if (key === 'ctr') {
+            lower = parseFloat("" + (lower / 100)).toFixed(2);
+            upper = parseFloat("" + (upper / 100)).toFixed(2);
+        }
+        filter[key] = Object.assign({ lower: +lower, upper: +upper });
+    });
+    // filter.click = globalFilter.click;
+    // filter.ctr = globalFilter.ctr;
+    // filter.cpc = globalFilter.cpc;
+    // filter.ecpm = globalFilter.ecpm;
+    // filter.cost = globalFilter.cost;
+    // filter.expo = globalFilter.expo;
     filter.timerange = globalFilter.timeRange === 7 ?
         [moment().subtract(7, 'd').format("YYYYMMDD"), moment().subtract(1, 'd').format("YYYYMMDD")] :
         [moment().subtract(30, 'd').format("YYYYMMDD"), moment().subtract(1, 'd').format("YYYYMMDD")];

@@ -85,7 +85,8 @@ export default class Portrait extends Vue {
   templateLoaded!: boolean;
   get loadingText() {
     if (this.templateLoaded === false) return "定向模板加载中...";
-    if (this.systemLoaded === false) return "数据加载中...";
+    if (this.systemLoaded === false) return "全局数据加载中...";
+    if (this.detailLoaded === false) return "详情数据加载中...";
     else return "";
   }
 

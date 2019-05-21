@@ -10,7 +10,7 @@
       <span class="active" @click="handleShowData">{{showData === true ? '显示视图' : '原始数据'}}</span>
     </div>
     <div class="table-container" v-if="showData">
-      <el-table style="width: 100%" border :data="tableData" height="400px">
+      <el-table lazy style="width: 100%" border :data="tableData" height="400px">
         <el-table-column prop="rank" label="Rank" v-if="mode === 'Global'"></el-table-column>
         <el-table-column prop="freq" label="Freq" v-if="mode === 'Global'"></el-table-column>
         <el-table-column prop="adgroup_id" label="广告ID" v-if="mode === 'Detail'"></el-table-column>
@@ -57,17 +57,21 @@ export default class ParallelCoordinate extends Vue {
 
   get tableData() {
     if (this.mode === "Global")
-      return this.data.filter(
-        (d: any) =>
-          this.brushCmbs == null ||
-          this.brushCmbs.data.indexOf(d.cmbtargets) !== -1
-      );
+      return this.data
+        .filter(
+          (d: any) =>
+            this.brushCmbs == null ||
+            this.brushCmbs.data.indexOf(d.cmbtargets) !== -1
+        )
+        .slice(0, 100);
     else
-      return this.detailedData.filter(
-        (d: any) =>
-          this.detailedBrush == null ||
-          this.detailedBrush.data.indexOf(d.adgroup_id) !== -1
-      );
+      return this.detailedData
+        .filter(
+          (d: any) =>
+            this.detailedBrush == null ||
+            this.detailedBrush.data.indexOf(d.adgroup_id) !== -1
+        )
+        .slice(0, 100);
     // if (this.brushCmbs == null) return this.data;
     // else
     //   return this.data.filter(
@@ -135,27 +139,6 @@ export default class ParallelCoordinate extends Vue {
     }
     this.renderChart();
   }
-
-  // preprocess(data: any[]) {
-  //   data.forEach(d => {
-  //     let keys = Object.keys(d);
-  //     keys.forEach(key => {
-  //       if (
-  //         key === "rank" ||
-  //         key === "cmbtargets" ||
-  //         key === "adgroupids" ||
-  //         key === "aids"
-  //       )
-  //         return;
-  //       let value: any = d[key];
-  //       if (!Number.isInteger(+value)) {
-  //         if (key === "ctr") value = +value.toFixed(5);
-  //         else value = +value.toFixed(3);
-  //       }
-  //       d[key] = value;
-  //     });
-  //   });
-  // }
 
   @Getter("detailLoaded")
   detailLoaded!: boolean;

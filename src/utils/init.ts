@@ -9,12 +9,12 @@ export const defaultGlobalFilter: any = {
     industry: [],
     timeRange: 7,
     freq: { lower: 10, upper: 999999999999 },
-    click: { lower: 0, upper: 999999999999 },
+    click: { lower: 50, upper: 999999999999 },
     cpc: { lower: 0, upper: 999999999999 },
     cost: { lower: 50, upper: 999999999999 },
     ctr: { lower: 0, upper: 100 },
-    ecpm: { lower: 0, upper: 999999999999 },
-    expo: { lower: 0, upper: 999999999999 }
+    ecpm: { lower: 50, upper: 999999999999 },
+    expo: { lower: 50, upper: 999999999999 }
 };
 
 export function updateState(key: string, data: any) {
@@ -43,12 +43,31 @@ export function addState(data: any) {
             console.log('添加成功');
         }
     }
+}
 
+export function fetchAllState(callback: any) {
+    let request: any = intiDatabase();
+    let result: any[] = [];
+    request.onsuccess = function (e: any) {
+        let db = e.target.result;
+        let transaction = db.transaction('target-database', 'readwrite');
+        let store = transaction.objectStore('target-database');
+        let findRequest = store.openCursor();
+        findRequest.onsuccess = function (e: any) {
+            let cursor = e.target.result;
+            if (cursor != null && cursor.value != null) {
+                result.push(cursor.value);
+                cursor.continue();
+            }
+            if (cursor == null) console.log(result);
+        }
+
+    }
 }
 
 export function findState(callback: any) {
     let request: any = intiDatabase();
-    let searched: boolean = false;
+
     request.onsuccess = function (e: any) {
         let db = e.target.result;
         let transaction = db.transaction('target-database', 'readwrite');

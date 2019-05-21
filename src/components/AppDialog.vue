@@ -20,16 +20,14 @@
 </template>
 <script lang="ts">
 import { Component, Vue, Prop, Watch } from "vue-property-decorator";
-import { addState, updateState } from "@/utils/init";
+import { addState, updateState, fetchAllState } from "@/utils/init";
 import { Getter } from "vuex-class";
 import Bus from "../charts/event-bus";
 @Component({
   mounted() {
     const vm: any = this;
-    Bus.$on("has-default-project", (message: any) => {
-      vm.defaulted = message == null ? true : false;
-      vm.form = message == null ? {} : message;
-    });
+    vm.handleCoordinate();
+    fetchAllState(() => {});
   }
 })
 export default class AppDialog extends Vue {
@@ -45,6 +43,8 @@ export default class AppDialog extends Vue {
 
   @Getter("currentOpLog")
   currentState!: any;
+  @Getter("template/template")
+  template!: any;
 
   @Watch("show")
   watchShow(nVal: boolean) {
@@ -62,35 +62,61 @@ export default class AppDialog extends Vue {
     this.$emit("close-dialog");
   }
 
-  update() {
-    (this.$refs["stateForm"] as any).validate((valid: boolean) => {
-      if (valid === true) {
-        let now = new Date();
-        updateState(this.form.key, {
-          updatedAt: now.getTime(),
-          key: this.form.key,
-          title: this.form.title,
-          state: this.currentState
-        });
-        this.showDialog = false;
-        this.$emit("close-dialog");
-      }
+  @Getter("fullState")
+  fullState!: any;
+
+  @Getter("logs")
+  logs!: any[];
+
+  @Getter("opLogs")
+  opLogs!: any[];
+
+  // 用于获取保存的数据
+  getSnapshot() {
+    return this.fullState;
+  }
+
+  mode: string = "create";
+
+  handleCoordinate() {
+    Bus.$on("has-default-project", (message: any) => {
+      this.defaulted = message == null ? true : false;
+      this.form = message == null ? {} : message;
+    });
+    Bus.$on("get-saved-state", () => {
+      let now = new Date();
+      this.mode === "create"
+        ? addState({
+            updatedAt: now.getTime(),
+            key: now.getTime(),
+            title: this.form.title,
+            state: this.getSnapshot()
+          })
+        : updateState(this.form.key, {
+            updatedAt: now.getTime(),
+            key: this.form.key,
+            title: this.form.title,
+            state: this.getSnapshot()
+          });
+      this.showDialog = false;
+      this.$emit("close-dialog");
     });
   }
 
   saveAsNew() {
     (this.$refs["stateForm"] as any).validate((valid: boolean) => {
-      console.log(this.currentState);
       if (valid === true) {
-        let now = new Date();
-        addState({
-          updatedAt: now.getTime(),
-          key: now.getTime(),
-          title: this.form.title,
-          state: this.currentState
-        });
-        this.showDialog = false;
-        this.$emit("close-dialog");
+        this.mode = "create";
+        Bus.$emit("save-state");
+      }
+    });
+  }
+
+  update() {
+    (this.$refs["stateForm"] as any).validate((valid: boolean) => {
+      if (valid === true) {
+        this.mode = "update";
+        Bus.$emit("save-state");
       }
     });
   }

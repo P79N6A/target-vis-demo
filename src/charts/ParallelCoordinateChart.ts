@@ -48,7 +48,7 @@ export default class ParallelCoordinateChart {
     yFormats: any = {};
 
     globalLineOpacity: number = 1;
-    detailLineOpacity: number = 0.5;
+    detailLineOpacity: number = 0.15;
 
     bins: any = null;
     mode!: string;
@@ -104,8 +104,8 @@ export default class ParallelCoordinateChart {
         this.buildAxis();
         this.lines = this.computeLine(this.data);
         this.paint(this.lines);
-        this.resolveState();
-        this.zr.refresh();
+        // this.resolveState();
+        // this.zr.refresh();
     }
 
     computeAxis(data: CombinationData[]) {
@@ -528,17 +528,16 @@ export default class ParallelCoordinateChart {
             this.lineContainer.add(polyline);
         });
         this.renderQueue(data, () => {
+            this.lineContainer.attr('active', true);
             this.resolveState();
             this.zr.refresh();
-            this.lineContainer.attr('active', true);
         });
+
     }
 
     resolveState() {
-        if (this.activeLine != null)
-            this.activate(this.activeLine.cmbtargets);
-        else
-            this.deactivate();
+        if (this.activeLine != null) this.activate(this.activeLine.cmbtargets);
+        else this.deactivate();
         this.handleBrush(false);
     }
 

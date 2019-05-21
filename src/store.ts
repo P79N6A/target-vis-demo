@@ -7,6 +7,7 @@ import { FilterForm } from './models';
 import { TargetingInfo } from './models/targeting';
 import CommonService from '@/api/common.service';
 import { getInitTargetingIds, transformPostData, transformPortraitResult } from './utils';
+import moment from 'moment';
 
 const service = CommonService.getInstance();
 let stateId: number = 0;
@@ -119,6 +120,7 @@ const store: StoreOptions<RootState> = {
     async loadAllState({ rootGetters, commit }, payload: any) {
       let currentRequestId = ++requestId;
       // 每次发送前将所有加载状态设置为false
+
       commit('systemLoadedMutation', false);
       commit('detailedLoadedMutation', false);
       commit('targetFreqLoadedMutation', false);
@@ -187,10 +189,11 @@ const store: StoreOptions<RootState> = {
     }
   },
   getters: {
+    fullState(store) {
+      return store;
+    },
     targetFreqLoaded(store) { return store.targetFreqLoaded },
-    // currentLogs(store) {
-    //   return store.logs
-    // },
+    // 找到支线
     logs(store) {
       return store.logs;
     },
@@ -208,8 +211,13 @@ const store: StoreOptions<RootState> = {
     opLogs(store) { return store.opLogs },
   },
   mutations: {
+    resolveAllState(store: any, payload) {
+      Object.keys(payload).forEach((key: string) => store[key] = payload[key]);
+    },
+    allLoaded(store) {
+      store.systemLoaded = store.detailLoaded = store.targetFreqLoaded = true;
+    },
     addTargetFreq(store, payload) {
-
       let map: any = {
         'site_set': 'siteSet',
         'ad_platform_type': 'platform',
@@ -241,9 +249,10 @@ const store: StoreOptions<RootState> = {
     targetFreqLoadedMutation(store, payload: boolean) { store.targetFreqLoaded = payload },
     detailedLoadedMutation(store, payload: boolean) { store.detailLoaded = payload },
     systemLoadedMutation(store, payload: boolean) { store.systemLoaded = payload },
+    // 保存新状态
     loadAllStateMutation(store, payload: any) {
-      let time = new Date(+payload.key);
-      let timeStr = `操作时间: ${time.getHours()}:${time.getMinutes()}:${time.getSeconds()}`;
+      let time = moment();
+      let timeStr = `操作时间: ${time.format("YYYY-MM-DD HH:mm:SS")}`;
       store.opLogs.push(payload);
       store.logs.splice(store.logPointer + 1);
       let len = store.logs.push(Object.assign({
@@ -257,6 +266,7 @@ const store: StoreOptions<RootState> = {
         store.opLogs = store.opLogs.filter((op: any) =>
           store.logs.findIndex((log: any) => log.key === op.key) !== -1);
     },
+
     saveCurrentOp(store, payload: any) {
       let index = store.opLogs.findIndex((op: any) => op.key === payload.key);
       store.opLogs[index] = payload;

@@ -25,7 +25,7 @@ import { Mutation, Action, Getter } from "vuex-class";
 import { defaultGlobalFilter } from "@/utils/init.ts";
 
 import { FilterForm, Types } from "@/models";
-import { TargetingInfo } from "@/models/targeting";
+import { TargetingInfo, TargetingTreeNode } from "@/models/targeting";
 import Bus from "@/charts/event-bus";
 import { getNextLevelTargets } from "@/utils";
 @Component({
@@ -74,17 +74,8 @@ export default class App extends Vue {
   watchTemplateLoaded(nVal: boolean) {
     if (nVal === false) return;
     // 如果有方案加载, 那么此时应特殊处理
-    if (
-      this.systemLoaded === false &&
-      this.currentState != null &&
-      this.preload === false
-    ) {
-      this.preload = true;
-      this.systemLoadedMutation(true);
-      this.detailedLoadedMutation(true);
-      this.targetFreqLoadedMutation(true);
-      return;
-    }
+    if (this.preload === true) return;
+
     if (this.systemLoaded === false || this.currentState == null) {
       let globalFilter = null;
       if (this.currentState == null) globalFilter = defaultGlobalFilter;
@@ -117,14 +108,7 @@ export default class App extends Vue {
       // 则一切按照默认方案加载
       this.getTemplateAction(defaultGlobalFilter);
       this.currentGlobalFilter = defaultGlobalFilter;
-    } else {
-      // 有保存的方案，按此方案呈现视图
-      let globalFilterStr = this.currentState.globalFilterState;
-      let globalFilter = JSON.parse(globalFilterStr);
-      this.currentGlobalFilter = globalFilter;
-      this.getTemplateAction(globalFilter);
     }
-    // if (nVal === true) this.getTemplateAction();
   }
 
   // 处理筛选条件
@@ -138,22 +122,30 @@ export default class App extends Vue {
   @Mutation("resolveState")
   resolveState(payload: any) {}
 
-  @Mutation("loadAllStateMutation")
-  loadAllStateMutation(payload: any) {}
+  @Mutation("resolveAllState")
+  resolveAllState(payload: any) {}
+
+  @Mutation("template/resolveTemplateMutation")
+  resolveTemplateMutation(payload: TargetingTreeNode) {}
+
+  @Mutation("allLoaded")
+  allLoaded() {}
 
   // 在每次刷新或打开浏览器时,应该先查找本地是否存在默认方案
   prepare() {
     findState((payload: any) => {
+      // 如果查找到了历史方案
       if (payload != null) {
         Bus.$emit(
           "has-default-project",
           Object.assign({ key: payload.key, title: payload.title })
         );
-        this.loadAllStateMutation(payload.state);
+        this.resolveAllState(payload.state);
+        setTimeout(() => (this.preload = false), 50);
       } else {
         Bus.$emit("has-default-project", null);
       }
-      this.getTypesAction();
+      setTimeout(() => this.getTypesAction(), 50);
     });
   }
 
@@ -192,7 +184,15 @@ export default class App extends Vue {
   @Mutation("systemLoadedMutation")
   systemLoadedMutation(payload: boolean) {}
 
+  @Mutation("saveCurrentOp")
+  saveCurrentOpMutation(payload: any) {}
+
   handleCoordinate() {
+    Bus.$on("save-state", () => {
+      let op = this.saveCurrentOp();
+      this.saveCurrentOpMutation(op);
+      Bus.$emit("get-saved-state");
+    });
     // 保存高亮定向
     Bus.$on("highlight-target", (message: any) => {
       if (this.currentState == null) return;
