@@ -1,8 +1,15 @@
 <template>
   <div id="app">
     <app-dialog :show="showDialog" @close-dialog="showDialog = false"></app-dialog>
+    <project-list
+      :show="showProjectListDialog"
+      @close-project-list-dialog="showProjectListDialog = false"
+    ></project-list>
     <div class="top">
-      <global-control-panel @open-dialog="showDialog = true"></global-control-panel>
+      <global-control-panel
+        @open-dialog="showDialog = true"
+        @open-project-list-dialog="showProjectListDialog = true"
+      ></global-control-panel>
       <hierarchy-chord ref="hierarchyChord"></hierarchy-chord>
       <combination-target ref="cominationTarget"></combination-target>
     </div>
@@ -18,16 +25,18 @@ import HierarchyChord from "@/components/HierarchyChord.vue";
 import ParallelCoordinate from "@/components/ParallelCoordinate.vue";
 import GlobalControlPanel from "@/components/GlobalControlPanel.vue";
 import CombinationTarget from "@/components/CombinationTarget.vue";
+import ProjectList from "@/components/ProjectList.vue";
 import Portrait from "@/components/Portrait.vue";
 import AppDialog from "@/components/AppDialog.vue";
 import { findState } from "@/utils/init.ts";
 import { Mutation, Action, Getter } from "vuex-class";
 import { defaultGlobalFilter } from "@/utils/init.ts";
-
+import { filter2Form } from "@/utils/index.ts";
+import moment from "moment";
 import { FilterForm, Types } from "@/models";
 import { TargetingInfo, TargetingTreeNode } from "@/models/targeting";
 import Bus from "@/charts/event-bus";
-import { getNextLevelTargets } from "@/utils";
+import { getNextLevelTargets, form2Filter } from "@/utils";
 @Component({
   components: {
     HierarchyChord,
@@ -35,7 +44,8 @@ import { getNextLevelTargets } from "@/utils";
     GlobalControlPanel,
     ParallelCoordinate,
     Portrait,
-    AppDialog
+    AppDialog,
+    ProjectList
   },
   mounted() {
     const vm: any = this;
@@ -46,6 +56,8 @@ import { getNextLevelTargets } from "@/utils";
 export default class App extends Vue {
   // 是否打开保存面板
   showDialog: boolean = false;
+  // 是否打开方案列表面板
+  showProjectListDialog: boolean = false;
 
   currentGlobalFilter = null;
 
@@ -75,7 +87,7 @@ export default class App extends Vue {
     if (nVal === false) return;
     // 如果有方案加载, 那么此时应特殊处理
     if (this.preload === true) return;
-
+    // 无方案加载
     if (this.systemLoaded === false || this.currentState == null) {
       let globalFilter = null;
       if (this.currentState == null) globalFilter = defaultGlobalFilter;
@@ -92,7 +104,6 @@ export default class App extends Vue {
           type: "Init"
         })
       );
-      this.currentGlobalFilter = null;
     }
   }
 
@@ -106,8 +117,9 @@ export default class App extends Vue {
     if (this.currentState == null) {
       // 证明当前无任何方案加载
       // 则一切按照默认方案加载
-      this.getTemplateAction(defaultGlobalFilter);
-      this.currentGlobalFilter = defaultGlobalFilter;
+      let dF = JSON.stringify(defaultGlobalFilter);
+      this.getTemplateAction(JSON.parse(dF));
+      this.currentGlobalFilter = JSON.parse(dF);
     }
   }
 
@@ -187,6 +199,23 @@ export default class App extends Vue {
   @Mutation("saveCurrentOp")
   saveCurrentOpMutation(payload: any) {}
 
+  @Watch("currentState")
+  watchCurrentState(nVal: any, oVal: any) {
+    if (nVal == null) return;
+    if (oVal == null || nVal.globalFilterState !== oVal.globalFilterState)
+      this.currentGlobalFilter = JSON.parse(nVal.globalFilterState);
+
+    let globalFilter = JSON.parse(nVal.globalFilterState);
+    let timeRange = globalFilter.timeRange;
+    // 数据库中应有的最后分区
+    let lastPartition = moment().subtract(30, "d");
+    // 当前状态中的数据范围
+    let projectLastPartition = moment;
+  }
+
+  @Getter("types/types")
+  types!: Types;
+
   handleCoordinate() {
     Bus.$on("save-state", () => {
       let op = this.saveCurrentOp();
@@ -206,7 +235,7 @@ export default class App extends Vue {
           ids: message,
           type: "Filter",
           message: "筛选定向",
-          globalFilterState: this.currentState.globalFilterState,
+          globalFilterState: JSON.stringify(this.currentGlobalFilter),
           newOp: this.saveCurrentOp()
         })
       );
@@ -219,7 +248,7 @@ export default class App extends Vue {
     Bus.$on("get-detail", (adgroupids: string) => {
       this.loadDetailState(
         Object.assign({
-          globalFilter: this.currentState.globalFilterState,
+          globalFilter: JSON.stringify(this.currentGlobalFilter),
           ids: this.currentState.targets.map((item: any) => item.id),
           adgroupids
         })
@@ -229,8 +258,9 @@ export default class App extends Vue {
     // 需要创建新的请求
     // 先请求模板
     Bus.$on("change-global-filter", (message: any) => {
-      this.getTemplateAction(JSON.parse(message));
-      this.currentGlobalFilter = JSON.parse(message);
+      let filter = form2Filter(JSON.parse(message), this.types);
+      this.currentGlobalFilter = filter;
+      this.getTemplateAction(this.currentGlobalFilter as any);
       this.systemLoadedMutation(false);
     });
     Bus.$on("drilldown-addState", (message: any) => {
@@ -240,7 +270,7 @@ export default class App extends Vue {
       let children = getNextLevelTargets(
         this.template,
         clicked.id,
-        JSON.parse(this.currentState.globalFilterState)
+        this.currentGlobalFilter
       );
       // 如果被下钻定向不存在子定向，或子定向频次不符合全局筛选条件
       // 显示提示信息并返回，此时不会向后端发送请求
@@ -269,7 +299,7 @@ export default class App extends Vue {
         Object.assign({
           type: "Drilldown",
           ids: newTargets,
-          globalFilterState: this.currentState.globalFilterState,
+          globalFilterState: JSON.stringify(this.currentGlobalFilter),
           message: `下钻-${message.drilldown.clicked.name}`,
           newOp: this.saveCurrentOp()
         })
@@ -301,7 +331,7 @@ body {
   display: grid;
   grid-gap: 5px;
   grid-template-rows: minmax(100%, 100%);
-  grid-template-columns: minmax(250px, 15%) 1fr 45%;
+  grid-template-columns: minmax(280px, 17%) 1fr 45%;
 }
 #app .bottom {
   display: grid;

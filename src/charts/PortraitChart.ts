@@ -333,16 +333,14 @@ export default class PortraitChart {
         let tooltipStr = `
         <p><span class="tip" style="background-color: #c23531"></span><span>${name}</span></p>
         `
-        if (typeof data === 'number') tooltipStr += `<p><span class="tip"></span><span>${this.index}: ${data}</span></p>`;
+        if (typeof data !== 'object') tooltipStr += `<p><span class="tip"></span><span>${this.index}: ${data}</span></p>`;
         else {
-            // 此时还要区分是否有高亮的定向
+            // 应对定向频次
+            console.log('定向频次');
             let keys: string[] = []
-            if (this.activeId != null) keys = [this.activeId]
-            else {
-                keys = Object.keys(data);
-                keys = keys.filter(key => this.filteredIds.findIndex(item => item.id === key) === -1);
-                keys.sort((a, b) => data[b] - data[a]);
-            }
+            keys = Object.keys(data);
+            keys = keys.filter(key => this.filteredIds.findIndex(item => item.id === key) === -1);
+            keys.sort((a, b) => data[b] - data[a]);
             keys.forEach(key => {
                 let color = this.color(key[0]);
                 let name = (this.targets.find(t => t.id === key) as TargetingInfo)['name'];

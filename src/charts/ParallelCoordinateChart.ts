@@ -48,7 +48,7 @@ export default class ParallelCoordinateChart {
     yFormats: any = {};
 
     globalLineOpacity: number = 1;
-    detailLineOpacity: number = 0.15;
+    detailLineOpacity: number = 0.25;
 
     bins: any = null;
     mode!: string;
@@ -119,6 +119,7 @@ export default class ParallelCoordinateChart {
                 scale = d3.scaleLinear().domain([0, maxValue]).nice().rangeRound([this.cHeight, 0]);
             else {
                 if (minValue < 1) minValue = 1;
+                // minValue = 1;
                 scale = d3.scaleLog().clamp(true).base(Math.E).domain([minValue, maxValue]).nice().rangeRound([this.cHeight, 0]);
             }
 
@@ -174,8 +175,8 @@ export default class ParallelCoordinateChart {
             });
 
             axisLineLabel.on('mousedown', (ev: any) => {
-                let isFirst = this.axisScale.domain().findIndex((axis: string) => axis === d) === 0;
-                if (isFirst === true && this.mode === 'Global') return;
+                // let isFirst = this.axisScale.domain().findIndex((axis: string) => axis === d) === 0;
+                // if (isFirst === true && this.mode === 'Global') return;
                 let originPosX = group.position[0];
                 let dist = this.adjustX(ev.offsetX) - originPosX;
                 let onMouseMove = (ev: any) => {
@@ -398,13 +399,13 @@ export default class ParallelCoordinateChart {
 
             let selectionRect = group.childOfName('selection-rect').shape['height'];
             let upperLabel = new zrender.Text({
-
-                style: { text: format(upper), textAlign: 'left', textVerticalAlign: 'bottom' },
+                z: 200,
+                style: { text: format(upper), fontWeight: 'bold', textAlign: 'left', textVerticalAlign: 'bottom' },
                 position: [20, -5]
             });
             let lowerLabel = new zrender.Text({
-
-                style: { text: format(lower), textAlign: 'left', textVerticalAlign: 'top' },
+                z: 200,
+                style: { text: format(lower), fontWeight: 'bold', textAlign: 'left', textVerticalAlign: 'top' },
                 position: [20, selectionRect + 5]
             });
             labelGroup.add(upperLabel);
@@ -478,19 +479,27 @@ export default class ParallelCoordinateChart {
         let ticks = [];
         let scale = this.yScales[d];
         if (this.mode === 'Detail' && d !== 'ctr') {
-            let values = this.data.map((item: any) => item[d]).filter(item => item >= 1)
-                .sort((a, b) => a - b);
-            for (let i = 0; i <= 3; ++i) {
-                ticks.push(Math.round(d3.quantile(values, i * 0.25) as number));
-            }
-            let threshold = ticks[3] + (ticks[3] - ticks[1]) * 1.5;
-            ticks.push(threshold);
+            let step = Math.round(this.cHeight / 4);
+            d3.range(6).forEach((index: number) => {
+                ticks.push(scale.invert(index * step));
+            });
+            // let values = this.data.map((item: any) => item[d]).filter(item => item >= 1)
+            //     .sort((a, b) => a - b);
+            // for (let i = 0; i <= 3; ++i) {
+            //     ticks.push(Math.round(d3.quantile(values, i * 0.25) as number));
+            // }
+            // let threshold = ticks[3] + (ticks[3] - ticks[1]) * 1.5;
+            // ticks.push(threshold);
         } else {
             ticks = scale.ticks(5);
         }
         let domain = scale.domain();
+        // 添加最大值刻度
         if (ticks[ticks.length - 1] < domain[1]) ticks.push(domain[1]);
+        // 添加最小值刻度线
+        if (ticks[0] > domain[0]) ticks.push(domain[0]);
 
+        ticks = Array.from(new Set(ticks));
 
         let ticksGroup = new zrender.Group({ name: 'ticks' });
         if (ticks == null) return;

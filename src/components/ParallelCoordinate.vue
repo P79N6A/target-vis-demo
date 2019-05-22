@@ -8,20 +8,31 @@
       <span class="view-name">平行坐标 {{mode === 'Detail' ? '(定向组合限定)' : '(全局)'}}</span>
       <span :class="{ active: canClearBrushes }" @click="handleClear">清除刷选</span>
       <span class="active" @click="handleShowData">{{showData === true ? '显示视图' : '原始数据'}}</span>
+      <span class="fill-space"></span>
+      <span class="active" v-if="mode === 'Detail'">广告数: {{dataLength}}</span>
     </div>
     <div class="table-container" v-if="showData">
-      <el-table lazy style="width: 100%" border :data="tableData" height="400px">
-        <el-table-column prop="rank" label="Rank" v-if="mode === 'Global'"></el-table-column>
-        <el-table-column prop="freq" label="Freq" v-if="mode === 'Global'"></el-table-column>
+      <el-table style="width: 100%" border :data="tableData" height="340">
+        <el-table-column sortable prop="rank" label="Rank" v-if="mode === 'Global'"></el-table-column>
+
         <el-table-column prop="adgroup_id" label="广告ID" v-if="mode === 'Detail'"></el-table-column>
         <el-table-column prop="advertiser_id" label="广告主ID" v-if="mode === 'Detail'"></el-table-column>
         <el-table-column
-          v-for="(index, idx) in this.indexes.filter(index => index !== 'freq')"
+          sortable
+          v-for="(index, idx) in this.indexes.filter(index => this.mode === 'Global' || index !== 'freq')"
           :key="idx"
           :prop="index"
           :label="index[0].toUpperCase() + index.substring(1)"
         ></el-table-column>
       </el-table>
+      <el-pagination
+        :current-page.sync="currentPage"
+        :current-change="handlePageChange"
+        background
+        :page-size="pageSize"
+        :total="dataLength"
+        :style="{'margin-top': '20px'}"
+      ></el-pagination>
     </div>
     <div class="chart"></div>
   </div>
@@ -45,9 +56,26 @@ export default class ParallelCoordinate extends Vue {
   chart!: any;
   detailedData: any = null;
   showData: boolean = false;
+  currentPage: number = 1;
+  pageSize: number = 50;
 
   @Getter("template/templateLoaded")
   templateLoaded!: boolean;
+
+  @Watch("dataLength")
+  watchDataLength() {
+    this.currentPage = 1;
+  }
+
+  get dataLength() {
+    if (this.data != null) return this.data.length;
+    return this.detailedData.filter(
+      (d: any) =>
+        this.detailedBrush == null ||
+        this.detailedBrush.data.indexOf(d.adgroup_id) !== -1
+    ).length;
+  }
+
   get loadingText() {
     if (this.templateLoaded === false) return "定向模板加载中...";
     if (this.systemLoaded === false) return "全局数据加载中...";
@@ -57,13 +85,11 @@ export default class ParallelCoordinate extends Vue {
 
   get tableData() {
     if (this.mode === "Global")
-      return this.data
-        .filter(
-          (d: any) =>
-            this.brushCmbs == null ||
-            this.brushCmbs.data.indexOf(d.cmbtargets) !== -1
-        )
-        .slice(0, 100);
+      return this.data.filter(
+        (d: any) =>
+          this.brushCmbs == null ||
+          this.brushCmbs.data.indexOf(d.cmbtargets) !== -1
+      );
     else
       return this.detailedData
         .filter(
@@ -71,19 +97,10 @@ export default class ParallelCoordinate extends Vue {
             this.detailedBrush == null ||
             this.detailedBrush.data.indexOf(d.adgroup_id) !== -1
         )
-        .slice(0, 100);
-    // if (this.brushCmbs == null) return this.data;
-    // else
-    //   return this.data.filter(
-    //     (d: any) => this.brushCmbs.data.indexOf(d.cmbtargets) != -1
-    //   );
-    // else {
-    //   if (this.detailedBrush == null) return this.detailedData;
-    //   else
-    //     return this.detailedData.filter(
-    //       (d: any) => this.detailedBrush.data.indexOf(d.adgroup_id) != -1
-    //     );
-    // }
+        .slice(
+          (this.currentPage - 1) * this.pageSize,
+          this.currentPage * this.pageSize
+        );
   }
 
   @Getter("systemLoaded")
@@ -153,6 +170,7 @@ export default class ParallelCoordinate extends Vue {
   initState(op: any) {
     this.indexes = op.indexes;
     this.mode = op.mode;
+    this.currentPage = 1;
     if (this.mode === "Global") {
       this.data = op.data;
       this.detailedData = null;

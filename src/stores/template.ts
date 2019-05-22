@@ -27,6 +27,10 @@ const actions: ActionTree<TemplateState, RootState> = {
         commit('templateLoadedMutation', false);
         let filter = transformPostData(payload, rootGetters['types/types']);
         let result: any = await service.loadTemplate(Object.assign({ filter }));
+        if (result == null) {
+            alert("定向模板加载出错");
+            return;
+        }
         commit('templateMutation', result);
         commit('templateLoadedMutation', true);
     }

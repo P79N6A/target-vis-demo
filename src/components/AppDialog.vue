@@ -1,5 +1,5 @@
 <template>
-  <el-dialog :before-close="beforeClose" title="保存方案（待定）" width="25%" :visible.sync="showDialog">
+  <el-dialog :before-close="beforeClose" title="保存方案" width="25%" :visible.sync="showDialog">
     <el-form
       :rules="rules"
       ref="stateForm"
@@ -27,7 +27,6 @@ import Bus from "../charts/event-bus";
   mounted() {
     const vm: any = this;
     vm.handleCoordinate();
-    fetchAllState(() => {});
   }
 })
 export default class AppDialog extends Vue {

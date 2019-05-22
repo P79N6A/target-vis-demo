@@ -26,6 +26,8 @@ export interface RootState {
   logPointer: number;
 }
 
+let count = 0;
+
 const store: StoreOptions<RootState> = {
   state: {
     systemLoaded: false,
@@ -70,15 +72,15 @@ const store: StoreOptions<RootState> = {
       }, 0);
     },
 
-
+    // 针对详情模式设计的接口
     async loadDetailState({ rootGetters, commit }, payload: any) {
       let currentRequestId = ++stateId;
       commit('detailedLoadedMutation', false);
-      let filter = transformPostData(JSON.parse(payload.globalFilter), rootGetters['types/types']);
+      // let filter = transformPostData(JSON.parse(payload.globalFilter), rootGetters['types/types']);
       let result: any = await service.getDetail(Object.assign({
         ids: [],
         adgroupids: payload.adgroupids,
-        filter,
+        filter: JSON.parse(payload.globalFilter)
       }));
       if (currentRequestId != stateId) return;
       if (result == null) {
@@ -86,6 +88,7 @@ const store: StoreOptions<RootState> = {
         commit('detailedLoadedMutation', true);
         return;
       }
+      ++count;
       transformPortraitResult(rootGetters['types/types'], result.portrait);
       commit('addDetailState', Object.assign({ portrait: result.portrait, combination: result.ads }));
       commit('detailedLoadedMutation', true);
@@ -111,24 +114,25 @@ const store: StoreOptions<RootState> = {
       }
       setTimeout(() => {
         commit('changeCurrentLogPointer', payload);
-      }, 50);
+      }, 500);
       setTimeout(() => {
         commit('systemLoadedMutation', true);
-      }, 50);
+      }, 600);
     },
 
     async loadAllState({ rootGetters, commit }, payload: any) {
       let currentRequestId = ++requestId;
       // 每次发送前将所有加载状态设置为false
 
-      commit('systemLoadedMutation', false);
-      commit('detailedLoadedMutation', false);
-      commit('targetFreqLoadedMutation', false);
+      commit('allLoaded', false);
 
       let ids: TargetingInfo[] = [];
       if (payload.ids != null) ids = payload.ids;
       else ids = getInitTargetingIds(rootGetters['template/template'], JSON.parse(payload.globalFilterState));
+
+      console.log('loadAllState', payload.globalFilterState);
       let filter = transformPostData(JSON.parse(payload.globalFilterState), rootGetters['types/types']);
+
       let result = await service.loadAllState(
         Object.assign({
           filter,
@@ -156,7 +160,7 @@ const store: StoreOptions<RootState> = {
         selectedCmb: null,
         highlightedTarget: null,
         targets: ids,
-        globalFilterState: payload.globalFilterState,
+        globalFilterState: JSON.stringify(filter),
         relationState: {
           data: result['relations'],
           controlState: { index: 'freq' }
@@ -182,9 +186,7 @@ const store: StoreOptions<RootState> = {
         }
       }));
       setTimeout(() => {
-        commit('detailedLoadedMutation', true);
-        commit('systemLoadedMutation', true);
-        commit('targetFreqLoadedMutation', true);
+        commit('allLoaded', true);
       }, 50);
     }
   },
@@ -214,8 +216,8 @@ const store: StoreOptions<RootState> = {
     resolveAllState(store: any, payload) {
       Object.keys(payload).forEach((key: string) => store[key] = payload[key]);
     },
-    allLoaded(store) {
-      store.systemLoaded = store.detailLoaded = store.targetFreqLoaded = true;
+    allLoaded(store, payload: boolean = true) {
+      store.systemLoaded = store.detailLoaded = store.targetFreqLoaded = payload;
     },
     addTargetFreq(store, payload) {
       let map: any = {

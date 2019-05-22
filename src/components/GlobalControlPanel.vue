@@ -2,12 +2,13 @@
   <div class="global-control-panel">
     <div class="panel">
       <span class="view-name">筛选器</span>
-
       <span class="active" @click="showDialog = true">定向结构</span>
+      <span class="fill-space"></span>
       <span class="active">
         <i v-if="!templateLoaded || !typesLoaded" class="el-icon-loading"></i>
       </span>
-      <span class="fill-space"></span>
+
+      <span class="active" @click="showProjectList">方案列表</span>
       <span class="active" v-if="typesLoaded" @click="openDialog">保存</span>
     </div>
     <div class="filter-form">
@@ -69,11 +70,23 @@
                 ></el-option>
               </el-select>
             </el-form-item>
-            <el-form-item label="数据范围">
-              <el-select v-model="form.timeRange">
-                <el-option :label="'最近7天'" :value="7"></el-option>
-                <el-option :label="'最近30天'" :value="30"></el-option>
+            <el-form-item label="数据范围:">
+              <el-select :value="range" @change="handleRangeChange">
+                <el-option :label="'默认'" :value="0"></el-option>
+                <el-option :label="'当前日期前7天'" :value="7"></el-option>
+                <el-option :label="'当前日期前30天'" :value="30"></el-option>
               </el-select>
+            </el-form-item>
+            <el-form-item label="数据范围:">
+              <el-row>
+                <el-col :span="11">
+                  <el-input v-model="form.timeRange[0]"></el-input>
+                </el-col>
+                <el-col :span="2" class="line">-</el-col>
+                <el-col :span="11">
+                  <el-input v-model="form.timeRange[1]"></el-input>
+                </el-col>
+              </el-row>
             </el-form-item>
             <el-form-item label="定向频次:">
               <el-row>
@@ -206,8 +219,9 @@ import { Action, Getter, Mutation } from "vuex-class";
 import { FilterForm, Types } from "@/models";
 import Bus from "@/charts/event-bus";
 import { TargetingTreeNode } from "@/models/targeting";
-import { getTreeNodes } from "@/utils/index";
+import { getTreeNodes, filter2Form } from "@/utils/index";
 import { defaultGlobalFilter } from "@/utils/init";
+import moment from "moment";
 @Component({})
 export default class GlobalControlPanel extends Vue {
   @Getter("typesLoaded", { namespace: "types" })
@@ -216,12 +230,40 @@ export default class GlobalControlPanel extends Vue {
   @Getter("logs")
   logs!: any[];
 
+  range: number = 0;
+
   // 取消定向筛选
   handleCancelCheckBox() {
     let oldTreeData = this.treeData;
     this.treeData = null;
     this.showDialog = false;
     setTimeout(() => (this.treeData = oldTreeData), 50);
+  }
+
+  // 改变时间范围
+  handleRangeChange(range: number) {
+    this.range = range;
+    if (range === 0) {
+      let oldForm = JSON.parse(this.formStr);
+      [this.form.timeRange[0], this.form.timeRange[1]] = [
+        oldForm.timeRange[0],
+        oldForm.timeRange[1]
+      ];
+    } else if (range === 7) {
+      this.form.timeRange[0] = moment()
+        .subtract(7, "d")
+        .format("YYYYMMDD");
+      this.form.timeRange[1] = moment()
+        .subtract(1, "d")
+        .format("YYYYMMDD");
+    } else if (range === 30) {
+      this.form.timeRange[0] = moment()
+        .subtract(30, "d")
+        .format("YYYYMMDD");
+      this.form.timeRange[1] = moment()
+        .subtract(1, "d")
+        .format("YYYYMMDD");
+    }
   }
 
   // 提交定向筛选
@@ -270,6 +312,7 @@ export default class GlobalControlPanel extends Vue {
   }
 
   showDialog: boolean = false;
+  showProjectListDialog: boolean = false;
 
   @Getter("currentOpLog")
   currentState!: any;
@@ -289,25 +332,30 @@ export default class GlobalControlPanel extends Vue {
       .map((t: any) => t.id);
   }
 
-  @Watch("currentState")
-  watchCurrentState(nVal: any) {
-    if (nVal == null) return;
-    if (nVal.globalFilterState === this.formStr) return;
-    let newGlobalFilterStr = JSON.parse(nVal.globalFilterState);
-    if (this.formStr === newGlobalFilterStr) return;
-    this.form = Object.assign({}, newGlobalFilterStr);
-    this.formStr = JSON.stringify(this.form);
-  }
+  // formatGlobalFilterStr(str: string | object) {
 
-  levelTraverse(root: TargetingTreeNode) {
-    if (root == null) return;
+  // }
+
+  @Watch("currentState")
+  watchCurrentState(nVal: any, oVal: any) {
+    if (nVal == null) return;
+    // let newGlobalFilter = JSON.parse(nVal.globalFilterState);
+    if (oVal != null && nVal != null) {
+      let oldFilter = oVal.globalFilterState;
+      let newFilter = nVal.globalFilterState;
+      if (oldFilter === newFilter) return;
+    }
+
+    this.form = Object.assign(
+      {},
+      filter2Form(nVal.globalFilterState, this.types)
+    );
+    // this.form = Object.assign({}, newGlobalFilter);
+    this.formStr = JSON.stringify(this.form);
   }
 
   @Getter("systemLoaded")
   systemLoaded!: boolean;
-
-  // @Getter("currentLogs")
-  // currentLogs!: any;
 
   @Action("changeCurrentLogPointer")
   changeCurrentLogPointer(payload: number) {}
@@ -346,7 +394,7 @@ export default class GlobalControlPanel extends Vue {
   platformSelection: Array<{ value: string; label: string }> = [];
   prodTypeSelection: Array<{ value: string; label: string }> = [];
 
-  form: any = defaultGlobalFilter;
+  form: any = filter2Form(JSON.stringify(defaultGlobalFilter), null);
 
   formStr: string = "";
 
@@ -375,6 +423,10 @@ export default class GlobalControlPanel extends Vue {
       Bus.$emit("change-global-filter", this.formStr);
       // this.globalFilterMutation(this.form);
     }
+  }
+
+  showProjectList() {
+    this.$emit("open-project-list-dialog");
   }
 
   openDialog() {

@@ -12,7 +12,7 @@ export default class HttpModule {
     private httpClient: AxiosInstance;
     // http://10.40.185.58:9001
     // 'http://tubi.oa.com/ucube_test/tagvis/'
-    constructor(private options: rxiosConfig = { baseURL: 'http://10.40.185.58:9000' }) {
+    constructor(private options: rxiosConfig = { baseURL: 'http://10.40.185.58:9001' }) {
         this.httpClient = Axios.create(options);
         Axios.interceptors.request.use((config: any) => {
             if (config.cancelToken == null) {

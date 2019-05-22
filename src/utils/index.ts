@@ -91,6 +91,76 @@ export function getNextLevelTargets(template: TargetingTreeNode, parentId: strin
     });
 }
 
+export function filter2Form(str: string, types: any) {
+    let filter = JSON.parse(str);
+    let realForm: any = {};
+    realForm.timeRange = [];
+    realForm.timeRange[0] = filter.timeRange[0];
+    realForm.timeRange[1] = filter.timeRange[1];
+    let { upper, lower } = filter.ctr;
+    [filter.ctr.lower, filter.ctr.upper] = [lower * 100, upper * 100];
+    let keyGroup1 = ['click', 'cost', 'expo', 'ecpm', 'cpc', 'ctr', 'freq'];
+    keyGroup1.forEach((key: string) => {
+        realForm[key] = {};
+        let { upper, lower } = filter[key];
+        [realForm[key].lower, realForm[key].upper] = [+lower, +upper];
+    });
+    let map: any = {
+        'site_set': 'siteSet',
+        'industry_id': 'industry',
+        'ad_platform_type': 'platform',
+        'product_type': 'prodType'
+    };
+    let keys = ["site_set", "industry_id", "ad_platform_type", "product_type"];
+
+    keys.forEach((key: string) => {
+        if (filter[key] == null) realForm[map[key]] = [];
+        if (filter[key] != null && types != null) {
+            let result: any[] = [];
+            filter[key].forEach((k: number) => {
+                let idx = types[map[key]].findIndex((item: any) => item.value === k);
+                if (idx === -1) return;
+                result.push(types[map[key]][idx].label);
+            });
+            realForm[map[key]] = result;
+        }
+    }
+    );
+    return realForm;
+}
+
+export function form2Filter(form: any, types: any) {
+    let timeRange = form.timeRange;
+    let realFilter: any = {};
+    realFilter.timeRange = [form.timeRange[0], form.timeRange[1]];
+    let { lower, upper } = form.ctr;
+    [form.ctr.lower, form.ctr.upper] = [+parseFloat((lower / 100) + "").toFixed(2), +parseFloat((upper / 100) + "").toFixed(2)];
+    let keyGroup1 = ['click', 'ctr', 'cpc', 'expo', 'cost', 'ecpm', 'freq'];
+    keyGroup1.forEach((key: string) => {
+        realFilter[key] = {};
+        let { upper, lower } = form[key];
+        [realFilter[key].lower, realFilter[key].upper] = [+lower, +upper];
+    });
+    let keyGroup2 = ['siteSet', 'industry', 'platform', 'prodType'];
+    let map: any = {
+        'siteSet': 'site_set',
+        'industry': 'industry_id',
+        'platform': 'ad_platform_type',
+        'prodType': 'product_type'
+    };
+    keyGroup2.forEach((key: string) => {
+        if (form[key] == null || form[key].length === 0) return;
+        let result: any[] = [];
+        form[key].forEach((k: string) => {
+            let idx = types[key].findIndex((item: any) => item.label === k);
+            if (idx === -1) return;
+            result.push(types[key][idx].value);
+        });
+        realFilter[map[key]] = result;
+    });
+    return realFilter;
+}
+
 
 /**
  * 将全局筛选面板值转换为filter参数
@@ -98,51 +168,31 @@ export function getNextLevelTargets(template: TargetingTreeNode, parentId: strin
  * @param types 流量、商品类型、平台等具体值
  */
 export function transformPostData(globalFilter: FilterForm, types: Types) {
-    let filter: any = {};
-    let indexes = ['click', 'ctr', 'cpc', 'ecpm', 'cost', 'expo'];
-    indexes.forEach((key: string) => {
-        let lower = (globalFilter as any)[key]['lower'];
-        let upper = (globalFilter as any)[key]['upper'];
-        if (key === 'ctr') {
-            lower = parseFloat("" + (lower / 100)).toFixed(2);
-            upper = parseFloat("" + (upper / 100)).toFixed(2);
-        }
-        filter[key] = Object.assign({ lower: +lower, upper: +upper });
-    });
-    // filter.click = globalFilter.click;
-    // filter.ctr = globalFilter.ctr;
-    // filter.cpc = globalFilter.cpc;
-    // filter.ecpm = globalFilter.ecpm;
-    // filter.cost = globalFilter.cost;
-    // filter.expo = globalFilter.expo;
-    filter.timerange = globalFilter.timeRange === 7 ?
-        [moment().subtract(7, 'd').format("YYYYMMDD"), moment().subtract(1, 'd').format("YYYYMMDD")] :
-        [moment().subtract(30, 'd').format("YYYYMMDD"), moment().subtract(1, 'd').format("YYYYMMDD")];
-    if (globalFilter.siteSet.length !== 0)
+    let filter: any = globalFilter;
+    if (globalFilter.siteSet != null && globalFilter.siteSet.length !== 0)
         filter.site_set = globalFilter.siteSet.map(s => {
             let index: number = types.siteSet.findIndex(item => item.label === s);
             return types.siteSet[index].value;
         });
 
-    if (globalFilter.platform.length !== 0)
-        filter.ad_platform_type = globalFilter.platform.map(p => {
-            let index: number = types.platform.findIndex(item => item.label === p);
-            return types.platform[index].value;
-        });
+    // if (globalFilter.platform != null && globalFilter.platform.length !== 0)
+    //     filter.ad_platform_type = globalFilter.platform.map(p => {
+    //         let index: number = types.platform.findIndex(item => item.label === p);
+    //         return types.platform[index].value;
+    //     });
 
-    if (globalFilter.prodType.length !== 0)
-        filter.product_type = globalFilter.prodType.map(p => {
-            let index: number = types.prodType.findIndex(item => item.label === p);
-            return types.prodType[index].value;
-        });
+    // if (globalFilter.prodType != null && globalFilter.prodType.length !== 0)
+    //     filter.product_type = globalFilter.prodType.map(p => {
+    //         let index: number = types.prodType.findIndex(item => item.label === p);
+    //         return types.prodType[index].value;
+    //     });
 
-    if (globalFilter.industry.length !== 0)
-        filter.industry_id = globalFilter.industry.map(p => {
-            let index: number = types.industry.findIndex(item => item.label === p);
-            return types.industry[index].value;
-        });
+    // if (globalFilter.industry != null && globalFilter.industry.length !== 0)
+    //     filter.industry_id = globalFilter.industry.map(p => {
+    //         let index: number = types.industry.findIndex(item => item.label === p);
+    //         return types.industry[index].value;
+    //     });
     return filter;
-
 }
 
 export function transformPortraitResult(types: any, data: any) {
