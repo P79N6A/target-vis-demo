@@ -2,10 +2,12 @@
 
 export const renderQueue = (function (fn: any) {
     let _queue: any[] = [];
-    let _rate: number = 100;
-    let _invalidate = function () { };
+    let _rate: number = 500;
+
     let _clear = function () { };
     let _callback = function () { };
+    let _valid: boolean = false;
+    let _invalidate = function () { _valid = false };
 
     let rq: any = function (data: any[], callback: any) {
         if (data != null) rq.data(data);
@@ -16,10 +18,10 @@ export const renderQueue = (function (fn: any) {
     };
 
     rq.render = function () {
-        let valid: boolean = true;
-        _invalidate = rq.invalidate = function () { valid = false };
+        rq.invalidate = _invalidate;
+        _valid = true;
         function doFrame() {
-            if (valid === false) return;
+            if (_valid === false) return;
             let chunk = _queue.splice(0, _rate);
             if (chunk.length === 0) {
                 _callback();

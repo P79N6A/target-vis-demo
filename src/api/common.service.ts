@@ -14,7 +14,8 @@ export default class CommonService {
     }
 
     loadTemplate<T>(payload: any) {
-        return this.httpModule.post('/updtemplate', payload)
+
+        return this.httpModule.get(`/updtemplate?requestobject=${JSON.stringify(payload)}`)
             .then(res => res.data)
             .then((res: any) => res.data.template);
     }
@@ -24,23 +25,26 @@ export default class CommonService {
     }
 
     getTargetFreq(payload: any) {
-        return this.httpModule.post('/getpattern', payload);
+
+        return this.httpModule.get(`/getpattern?requestobject=${JSON.stringify({
+            adgroupids: "",
+            filter: JSON.parse(payload.filter),
+            ids: payload.ids,
+            condition: payload.condition,
+            list: payload.list
+        })}`);
     }
 
     // 获取详情模式数据
     getDetail(payload: any) {
-        let adgroupids = payload.adgroupids;
-        adgroupids = adgroupids.split(",").map((a: any) => "'" + a + "'").join(",");
-        let newCondition = Object.assign(Object.assign({}, payload, { adgroupids }));
-        let moreDetail = Object.assign({
-            adgroupids,
-            filter: payload.filter,
-            ids: []
-        });
+
         return Promise.all([
-            this.httpModule.post('/condicmbdata', newCondition),
-            this.httpModule.post('/adsdata', Object.assign({ adgroupids })),
-            // this.httpModule.post('/condicmbdata', moreDetail)
+            this.httpModule.get(`/condicmbdata?requestobject=${
+                JSON.stringify(payload)
+                }`),
+            this.httpModule.get(`/adsdata?requestobject=${
+                JSON.stringify(payload)
+                }`),
         ]).then((res: any) => {
             return Object.assign({
                 portrait: Object.assign({
@@ -59,7 +63,9 @@ export default class CommonService {
 
     loadAllState(payload: any) {
         let result: any = {};
-        return this.httpModule.post('/calrelandcmbdata', payload)
+        return this.httpModule.get(`/calrelandcmbdata?requestobject=${JSON.stringify({
+            filter: payload.filter, ids: payload.ids,
+        })}`)
             .then(res => res.data)
             .then((res: any) => res.data)
             .then((res: any) => {
@@ -68,7 +74,9 @@ export default class CommonService {
                 result['relations'] = relations;
                 result['combinations'] = cmbs;
                 let newCondition = Object.assign({ adgroupids: "" }, payload);
-                return this.httpModule.post('/condicmbdata', newCondition).then(res => res.data);
+                return this.httpModule.get(`/condicmbdata?requestobject=${
+                    JSON.stringify(newCondition)
+                    }`).then(res => res.data);
             })
             .then((res: any) => {
                 let data = res.data;

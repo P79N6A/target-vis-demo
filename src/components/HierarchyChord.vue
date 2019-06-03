@@ -1,11 +1,11 @@
 <template>
   <div
     :element-loading-text="loadingText"
-    v-loading="!systemLoaded"
+    v-loading="!systemLoaded || currentState.type === 'Crowd-Location'"
     class="hierarchy-chord chart-container"
   >
     <div class="panel">
-      <span class="view-name">定向关系频次图</span>
+      <span class="view-name">定向关系图</span>
       <el-switch
         size="mini"
         @change="handleIndexChange"
@@ -67,6 +67,11 @@ export default class HierarchyChord extends Vue {
   get loadingText() {
     if (this.templateLoaded === false) return "定向模板加载中...";
     if (this.systemLoaded === false) return "数据加载中...";
+    if (
+      this.currentState != null &&
+      this.currentState.type === "Crowd-Location"
+    )
+      return "人群定位功能与关系图无关";
     else return "";
   }
 
@@ -130,7 +135,8 @@ export default class HierarchyChord extends Vue {
 
   @Watch("currentState")
   watchCurrentOpLog(nVal: any) {
-    if (nVal == null) return;
+    if (nVal == null || nVal.relationState.data == null) return;
+
     this.initState(nVal);
     this.renderChart();
   }

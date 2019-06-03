@@ -48,7 +48,7 @@ export default class ParallelCoordinateChart {
     yFormats: any = {};
 
     globalLineOpacity: number = 1;
-    detailLineOpacity: number = 0.25;
+    detailLineOpacity: number = 0.1;
 
     bins: any = null;
     mode!: string;
@@ -78,25 +78,9 @@ export default class ParallelCoordinateChart {
         this.activeLine = activeCmb;
         this.yBrushes = brushCmbs == null ? {} : Object.assign({}, brushCmbs.brushes);
         this.axisScale = d3.scalePoint().domain(this.axises).rangeRound([0, this.cWidth]);
-        this.preprocess();
+        // this.preprocess();
         this.mode = mode;
         this.update();
-    }
-    preprocess() {
-        if (this.data == null) return;
-        // let axises = this.axisScale.domain();
-        let keys = Object.keys(this.data[0]);
-        this.data.forEach((d: any) => {
-            for (let key of keys) {
-                if (key === 'index' || key === 'cmbtargets')
-                    continue;
-                let value = +d[key];
-                if (Number.isInteger(value)) continue;
-                if (key === 'ctr') value = +value.toFixed(5);
-                else value = +value.toFixed(3);
-                d[key] = value;
-            }
-        });
     }
     update() {
 
@@ -104,23 +88,24 @@ export default class ParallelCoordinateChart {
         this.buildAxis();
         this.lines = this.computeLine(this.data);
         this.paint(this.lines);
-        // this.resolveState();
-        // this.zr.refresh();
     }
 
     computeAxis(data: CombinationData[]) {
         let axises = this.axisScale.domain();
         axises.forEach((axis: string) => {
             let values = data.map((d: any) => d[axis]);
+
             let maxValue = values.reduce((prev: number, next: number) => Math.max(prev, next), -1);
             let minValue = values.reduce((prev: number, next: number) => Math.min(prev, next), Number.MAX_SAFE_INTEGER);
             let scale: any = null;
+
+
             if (this.mode === 'Global' || axis === 'ctr')
                 scale = d3.scaleLinear().domain([0, maxValue]).nice().rangeRound([this.cHeight, 0]);
             else {
-                if (minValue < 1) minValue = 1;
+                if (minValue < 5) minValue = 5;
                 // minValue = 1;
-                scale = d3.scaleLog().clamp(true).base(Math.E).domain([minValue, maxValue]).nice().rangeRound([this.cHeight, 0]);
+                scale = d3.scaleLog().clamp(true).base(Math.E).domain([minValue, maxValue]).rangeRound([this.cHeight, 0]);
             }
 
             this.yScales[axis] = scale;
@@ -483,13 +468,6 @@ export default class ParallelCoordinateChart {
             d3.range(6).forEach((index: number) => {
                 ticks.push(scale.invert(index * step));
             });
-            // let values = this.data.map((item: any) => item[d]).filter(item => item >= 1)
-            //     .sort((a, b) => a - b);
-            // for (let i = 0; i <= 3; ++i) {
-            //     ticks.push(Math.round(d3.quantile(values, i * 0.25) as number));
-            // }
-            // let threshold = ticks[3] + (ticks[3] - ticks[1]) * 1.5;
-            // ticks.push(threshold);
         } else {
             ticks = scale.ticks(5);
         }
@@ -525,23 +503,24 @@ export default class ParallelCoordinateChart {
     }
 
     paint(data: any[]) {
-        this.lineContainer.removeAll();
-        let opacity = this.mode === 'Global' ? this.globalLineOpacity : this.detailLineOpacity;
-        this.renderQueue = renderQueue((d: any) => {
-            let polyline = new zrender.Polyline({
-                shape: { points: d.points },
-                style: { lineWidth: 1, stroke: '#d94e5d', opacity: opacity },
-                name: 'line-' + d.name,
-                z: 10
-            });
-            this.lineContainer.add(polyline);
-        });
+        if (this.mode === 'Global' && Object.keys(this.yBrushes).some((key: string) => this.yBrushes[key] != null) === true)
+            return;
+        if (this.renderQueue == null)
+            this.renderQueue = renderQueue((d: any) => {
+                let opacity = this.mode === 'Global' ? this.globalLineOpacity : this.detailLineOpacity;
+                let polyline = new zrender.Polyline({
+                    shape: { points: d.points },
+                    style: { lineWidth: 1, stroke: '#d94e5d', opacity: opacity },
+                    name: 'line-' + d.name,
+                    z: 10
+                });
+                this.lineContainer.add(polyline);
+            }).clear(() => this.lineContainer.removeAll());
         this.renderQueue(data, () => {
             this.lineContainer.attr('active', true);
             this.resolveState();
             this.zr.refresh();
-        });
-
+        })
     }
 
     resolveState() {
@@ -551,9 +530,8 @@ export default class ParallelCoordinateChart {
     }
 
     activate(name: string) {
-
         let hoverLineData = this.lines.find((item: any) => item.name === name);
-        this.hoverContainer.removeAll();
+        // this.hoverContainer.removeAll();
         let hoverLine = this.hoverContainer.childOfName('active-line');
         let hoverLabelGroup = this.hoverContainer.childOfName('active-label-group');
         if (hoverLine == null) {

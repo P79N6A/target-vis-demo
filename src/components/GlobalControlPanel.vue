@@ -22,6 +22,7 @@
           >
             <el-form-item label="流量:" prop="siteSet">
               <el-select
+                style="width: 100%"
                 :placeholder="form.siteSet.length === 0 ? '搜索流量' : ''"
                 filterable
                 v-model="form.siteSet"
@@ -37,6 +38,7 @@
             </el-form-item>
             <el-form-item label="行业:">
               <el-select
+                style="width: 100%"
                 :placeholder="form.industry.length === 0 ? '搜索行业' : ''"
                 filterable
                 v-model="form.industry"
@@ -51,7 +53,13 @@
               </el-select>
             </el-form-item>
             <el-form-item label="平台:">
-              <el-select placeholder="搜索平台" filterable v-model="form.platform" multiple>
+              <el-select
+                style="width: 100%"
+                placeholder="搜索平台"
+                filterable
+                v-model="form.platform"
+                multiple
+              >
                 <el-option
                   v-for="(p, index) in platformSelection"
                   :key="index"
@@ -61,7 +69,13 @@
               </el-select>
             </el-form-item>
             <el-form-item label="商品类型:">
-              <el-select placeholder="搜索商品类型" filterable v-model="form.prodType" multiple>
+              <el-select
+                style="width: 100%"
+                placeholder="搜索商品类型"
+                filterable
+                v-model="form.prodType"
+                multiple
+              >
                 <el-option
                   v-for="(p, index) in prodTypeSelection"
                   :key="index"
@@ -70,76 +84,59 @@
                 ></el-option>
               </el-select>
             </el-form-item>
-            <el-form-item label="数据范围:">
-              <el-select :value="range" @change="handleRangeChange">
-                <el-option :label="'默认'" :value="0"></el-option>
-                <el-option :label="'当前日期前7天'" :value="7"></el-option>
-                <el-option :label="'当前日期前30天'" :value="30"></el-option>
-              </el-select>
-            </el-form-item>
-            <el-form-item label="数据范围:">
-              <el-row>
-                <el-col :span="11">
-                  <el-input v-model="form.timeRange[0]"></el-input>
-                </el-col>
-                <el-col :span="2" class="line">-</el-col>
-                <el-col :span="11">
-                  <el-input v-model="form.timeRange[1]"></el-input>
-                </el-col>
-              </el-row>
-            </el-form-item>
+
             <el-form-item label="定向频次:">
               <el-row>
                 <el-col :span="11">
-                  <el-input v-model="form.freq.lower"></el-input>
+                  <el-input v-model="form.freq[0]"></el-input>
                 </el-col>
                 <el-col :span="2" class="line">-</el-col>
                 <el-col :span="11">
-                  <el-input v-model="form.freq.upper"></el-input>
+                  <el-input v-model="form.freq[1]"></el-input>
                 </el-col>
               </el-row>
             </el-form-item>
             <el-form-item label="Click:">
               <el-row>
                 <el-col :span="11">
-                  <el-input v-model="form.click.lower"></el-input>
+                  <el-input v-model="form.click[0]"></el-input>
                 </el-col>
                 <el-col :span="2" class="line">-</el-col>
                 <el-col :span="11">
-                  <el-input v-model="form.click.upper"></el-input>
+                  <el-input v-model="form.click[1]"></el-input>
                 </el-col>
               </el-row>
             </el-form-item>
             <el-form-item label="Expo:">
               <el-row>
                 <el-col :span="11">
-                  <el-input v-model="form.expo.lower"></el-input>
+                  <el-input v-model="form.expo[0]"></el-input>
                 </el-col>
                 <el-col :span="2" class="line">-</el-col>
                 <el-col :span="11">
-                  <el-input v-model="form.expo.upper"></el-input>
+                  <el-input v-model="form.expo[1]"></el-input>
                 </el-col>
               </el-row>
             </el-form-item>
             <el-form-item label="Cost:">
               <el-row>
                 <el-col :span="11">
-                  <el-input v-model="form.cost.lower"></el-input>
+                  <el-input v-model="form.cost[0]"></el-input>
                 </el-col>
                 <el-col :span="2" class="line">-</el-col>
                 <el-col :span="11">
-                  <el-input v-model="form.cost.upper"></el-input>
+                  <el-input v-model="form.cost[1]"></el-input>
                 </el-col>
               </el-row>
             </el-form-item>
             <el-form-item label="Cpc:">
               <el-row>
                 <el-col :span="11">
-                  <el-input v-model="form.cpc.lower"></el-input>
+                  <el-input v-model="form.cpc[0]"></el-input>
                 </el-col>
                 <el-col :span="2" class="line">-</el-col>
                 <el-col :span="11">
-                  <el-input v-model="form.cpc.upper"></el-input>
+                  <el-input v-model="form.cpc[1]"></el-input>
                 </el-col>
               </el-row>
             </el-form-item>
@@ -147,22 +144,22 @@
             <el-form-item label="Ctr (%):">
               <el-row>
                 <el-col :span="11">
-                  <el-input v-model="form.ctr.lower"></el-input>
+                  <el-input v-model="form.ctr[0]"></el-input>
                 </el-col>
                 <el-col :span="2" class="line">-</el-col>
                 <el-col :span="11">
-                  <el-input v-model="form.ctr.upper"></el-input>
+                  <el-input v-model="form.ctr[1]"></el-input>
                 </el-col>
               </el-row>
             </el-form-item>
             <el-form-item label="Ecpm:">
               <el-row>
                 <el-col :span="11">
-                  <el-input v-model="form.ecpm.lower"></el-input>
+                  <el-input v-model="form.ecpm[0]"></el-input>
                 </el-col>
                 <el-col :span="2" class="line">-</el-col>
                 <el-col :span="11">
-                  <el-input v-model="form.ecpm.upper"></el-input>
+                  <el-input v-model="form.ecpm[1]"></el-input>
                 </el-col>
               </el-row>
             </el-form-item>
@@ -283,14 +280,16 @@ export default class GlobalControlPanel extends Vue {
     }
 
     let freq = this.form.freq;
+    let [lower, upper] = freq;
+    upper = upper === "MAX" ? Number.MAX_SAFE_INTEGER : upper;
     let hasDisabledTarget: boolean = false;
     let newTargets = this.currentState.targets.map((target: any) => {
       let tmp = Object.assign({}, target);
       let idx = newCheckedNodes.findIndex((node: any) => node.id === tmp.id);
-      if (idx === -1 || (freq.lower > tmp.freq || freq.upper < tmp.freq)) {
+      if (idx === -1 || (lower > tmp.freq || upper < tmp.freq)) {
         tmp.selected = false;
       } else tmp.selected = true;
-      if (idx !== -1 && (freq.lower > tmp.freq || freq.upper < tmp.freq))
+      if (idx !== -1 && (lower > tmp.freq || upper < tmp.freq))
         hasDisabledTarget = true;
       return tmp;
     });

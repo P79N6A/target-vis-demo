@@ -70,6 +70,10 @@
         :class="{ active: selectedCmb != null  }"
         @click="handleDetail"
       >{{mode !== 'Global' ? '全局' : '详情'}}模式</span>
+      <span
+        :class="{ active: selectedCmb != null  }"
+        @click="handleCrowdLocation"
+      >{{mode === 'Crowd-Location' ? '关闭' : '开启'}}人群定位</span>
       <span class="fill-space"></span>
     </div>
     <div v-show="titles" class="title-container">
@@ -112,7 +116,17 @@ export default class CombinationTarget extends Vue {
   watchCurrentState(nVal: any) {
     if (nVal == null) return;
     this.initState(nVal);
-    this.initData(this.data);
+    if (nVal.type === "Crowd-Location") {
+      Bus.$emit("send-data", {
+        mode: "Detail",
+        detailedData: nVal.combinationState.detailedData,
+        indexes: this.indexes,
+        selectedCmb: null,
+        brushedCmbs: null
+      });
+      return;
+    }
+
     this.process(this.data);
   }
   @Getter("template/templateLoaded")
@@ -167,6 +181,7 @@ export default class CombinationTarget extends Vue {
     this.orAndStr = this.controlState.orAndStr;
     this.brushedCmbs = this.controlState.brushedCmbs;
     this.mode = "Global";
+    if (op.type === "Crowd-Location") this.mode = "Crowd-Location";
     // 排序坐标轴
     let sIdx = this.indexes.indexOf(this.sorter);
     [this.indexes[0], this.indexes[sIdx]] = [
@@ -260,6 +275,7 @@ export default class CombinationTarget extends Vue {
       this.selectedCmb = message;
       if (this.selectedCmb == null) {
         this.mode = "Global";
+        this.quitDetailModeMutation();
         Bus.$emit("change-global");
         Bus.$emit(
           "send-data",
@@ -277,6 +293,7 @@ export default class CombinationTarget extends Vue {
         return;
       }
       if (this.mode === "Detail") this.sendGetDetailMessage();
+      if (this.mode === "Crowd-Location") this.sendCrowdLocationMessage();
       // this.renderChart();
     });
     Bus.$on("drilldown-addState", (message: any) => {
@@ -305,20 +322,6 @@ export default class CombinationTarget extends Vue {
     this.brushedCmbs = null;
     this.process(this.data);
     this.showPopmenu = false;
-  }
-
-  initData(data: CombinationData[]) {
-    if (data.length == 0) return;
-    let map = new Map<string, string[]>();
-    let adgroupids = "";
-    data.forEach((d: any, i) => {
-      adgroupids += d.adgroupids;
-      d.aids = d.adgroupids.replace(/'/g, "");
-      map.set(d.cmbtargets, d.aids);
-    });
-    adgroupids = adgroupids.replace(/'/g, "");
-    this.map = map;
-    // Bus.$emit("send-adgroupids", adgroupids);
   }
 
   getDataByOrAnd(data: CombinationData[]) {
@@ -393,6 +396,27 @@ export default class CombinationTarget extends Vue {
 
   mode: string = "Global";
 
+  handleCrowdLocation() {
+    if (this.mode === "Global") {
+      this.mode = "Crowd-Location";
+      this.sendCrowdLocationMessage();
+    } else if (this.mode === "Crowd-Location") {
+      this.quitCrowdLocationMutation();
+    }
+  }
+
+  @Mutation("quitCrowdLocationMutation")
+  quitCrowdLocationMutation() {}
+  sendCrowdLocationMessage() {
+    if (this.selectedCmb == null) return;
+    let selectedCmb = this.selectedCmb.map((item: TargetingInfo) => item.id);
+    if (selectedCmb == null) return;
+    Bus.$emit("get-crowd-location", selectedCmb);
+  }
+
+  @Mutation("quitDetailModeMutation")
+  quitDetailModeMutation() {}
+
   handleDetail() {
     if (this.mode === "Global") {
       this.mode = "Detail";
@@ -400,6 +424,7 @@ export default class CombinationTarget extends Vue {
     } else if (this.mode === "Detail") {
       this.mode = "Global";
       Bus.$emit("change-global");
+      this.quitDetailModeMutation();
       Bus.$emit(
         "send-data",
         Object.assign({
@@ -415,10 +440,9 @@ export default class CombinationTarget extends Vue {
   }
 
   sendGetDetailMessage() {
-    let selectedCmb = this.selectedCmb;
-    if (selectedCmb == null) return;
-    let adgroupids = this.map.get((selectedCmb as any).cmbtargets);
-    Bus.$emit("get-detail", adgroupids);
+    if (this.selectedCmb == null) return;
+    let selectedCmb = this.selectedCmb.map((item: TargetingInfo) => item.id);
+    Bus.$emit("get-detail", selectedCmb);
   }
 
   @Getter("detailLoaded")

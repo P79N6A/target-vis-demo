@@ -11,7 +11,7 @@
           >当前</el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="保存时间">
+      <el-table-column label="更新时间">
         <template slot-scope="scope">
           <i class="el-icon-time"></i>
           <span style="margin-left: 10px">{{getProjectTime(scope.row.updatedAt)}}</span>
@@ -20,6 +20,7 @@
       <el-table-column label="操作">
         <template slot-scope="scope">
           <el-button size="mini" @click="openProject(scope.row.key)" type="primary">打开</el-button>
+          <el-button size="mini" @click="deleteProject(scope.row.key)" type="danger">删除</el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -28,7 +29,7 @@
 <script lang="ts">
 import moment from "moment";
 import { Component, Vue, Prop, Watch } from "vue-property-decorator";
-import { fetchAllState, openProject } from "../utils/init";
+import { fetchAllState, openProject, deleteState } from "../utils/init";
 import Bus from "../charts/event-bus";
 @Component({
   mounted() {
@@ -47,7 +48,7 @@ export default class ProjectList extends Vue {
   defaultProject: any = null;
 
   getProjectTime(time: number) {
-    return moment(time).format("YYYY-MM-DD HH:mm:SS");
+    return moment(time).format("YYYY-MM-DD HH:mm:ss");
   }
 
   states: any[] = [];
@@ -56,6 +57,10 @@ export default class ProjectList extends Vue {
 
   openProject(key: number) {
     openProject(key);
+  }
+
+  deleteProject(key: string) {
+    deleteState(key);
   }
 
   @Watch("show")

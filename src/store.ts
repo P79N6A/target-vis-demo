@@ -72,14 +72,14 @@ const store: StoreOptions<RootState> = {
       }, 0);
     },
 
+
     // 针对详情模式设计的接口
     async loadDetailState({ rootGetters, commit }, payload: any) {
       let currentRequestId = ++stateId;
       commit('detailedLoadedMutation', false);
       // let filter = transformPostData(JSON.parse(payload.globalFilter), rootGetters['types/types']);
       let result: any = await service.getDetail(Object.assign({
-        ids: [],
-        adgroupids: payload.adgroupids,
+        pattern: payload.pattern,
         filter: JSON.parse(payload.globalFilter)
       }));
       if (currentRequestId != stateId) return;
@@ -113,11 +113,66 @@ const store: StoreOptions<RootState> = {
         commit('template/templateMutation', result);
       }
       setTimeout(() => {
-        commit('changeCurrentLogPointer', payload);
+        if (currentState.type === 'Crowd-Location') commit('quitCrowdLocationMutation');
+        else
+          commit('changeCurrentLogPointer', payload);
       }, 500);
       setTimeout(() => {
         commit('systemLoadedMutation', true);
       }, 600);
+    },
+
+    // 人群定位
+    async loadCrowdLocation({ commit, getters, rootGetters }, payload: any) {
+
+      commit('allLoaded', false);
+      let filter = transformPostData(JSON.parse(payload.filter), rootGetters['types/types']);
+      let result = await service.getDetail({
+        filter,
+        pattern: payload.pattern
+      });
+      transformPortraitResult(rootGetters['types/types'], result.portrait);
+      let data = Object.assign({
+        type: 'Crowd-Location',
+        message: '人群定位',
+        key: Date.now() + "",
+        selectedCmb: payload.pattern,
+        highlightedTarget: null,
+        targets: payload.ids,
+        globalFilterState: JSON.stringify(filter),
+        relationState: {
+          data: null,
+          controlState: { index: 'freq' }
+        },
+        combinationState: {
+          data: null,
+          detailedData: result.ads.ads,
+          controlState: {
+            brushedCmbs: null,
+            limit: 30,
+            sorter: 'freq',
+            orAndStr: JSON.stringify({ and: [], or: [] })
+          }
+        },
+        portraitState: {
+          data: null,
+          detailedData: result.portrait,
+          controlState: {
+            index: 'Freq',
+            types: 'siteSet',
+            mode: 'Detail'
+          }
+        }
+      });
+      let currentState = getters['currentOpLog'];
+      if (currentState != null && currentState.type === 'Crowd-Location') {
+        commit('quitCrowdLocationMutation');
+      }
+      setTimeout(() => {
+        commit('loadAllStateMutation', data);
+        commit('allLoaded', true);
+      }, 200);
+
     },
 
     async loadAllState({ rootGetters, commit }, payload: any) {
@@ -130,7 +185,6 @@ const store: StoreOptions<RootState> = {
       if (payload.ids != null) ids = payload.ids;
       else ids = getInitTargetingIds(rootGetters['template/template'], JSON.parse(payload.globalFilterState));
 
-      console.log('loadAllState', payload.globalFilterState);
       let filter = transformPostData(JSON.parse(payload.globalFilterState), rootGetters['types/types']);
 
       let result = await service.loadAllState(
@@ -216,6 +270,19 @@ const store: StoreOptions<RootState> = {
     resolveAllState(store: any, payload) {
       Object.keys(payload).forEach((key: string) => store[key] = payload[key]);
     },
+    quitCrowdLocationMutation(store) {
+      let currentState = store.opLogs.find((item: any) => item.key === store.logs[store.logPointer].key);
+      if (currentState == null) return;
+      if (currentState.type === 'Crowd-Location') {
+        store.logPointer--;
+        setTimeout(() => {
+          store.logs.splice(store.logPointer + 1, 1);
+          if (store.opLogs.length != 0)
+            store.opLogs = store.opLogs.filter((op: any) =>
+              store.logs.findIndex((log: any) => log.key === op.key) !== -1);
+        }, 50);
+      }
+    },
     allLoaded(store, payload: boolean = true) {
       store.systemLoaded = store.detailLoaded = store.targetFreqLoaded = payload;
     },
@@ -254,7 +321,8 @@ const store: StoreOptions<RootState> = {
     // 保存新状态
     loadAllStateMutation(store, payload: any) {
       let time = moment();
-      let timeStr = `操作时间: ${time.format("YYYY-MM-DD HH:mm:SS")}`;
+      let timeStr = `操作时间: ${time.format("YYYY-MM-DD HH:mm:ss")}`;
+
       store.opLogs.push(payload);
       store.logs.splice(store.logPointer + 1);
       let len = store.logs.push(Object.assign({
@@ -273,6 +341,12 @@ const store: StoreOptions<RootState> = {
       let index = store.opLogs.findIndex((op: any) => op.key === payload.key);
       store.opLogs[index] = payload;
     },
+    quitDetailModeMutation(store) {
+      let currentState = store.opLogs.find((op: any) => op.key === store.logs[store.logPointer].key);
+      if (currentState == null) return;
+      currentState.portraitState.detailedData = null;
+      currentState.combinationState.detailedData = null;
+    }
   },
   modules: {
     types,

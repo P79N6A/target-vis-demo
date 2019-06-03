@@ -5,7 +5,7 @@
     :element-loading-text="loadingText"
   >
     <div class="panel">
-      <span class="view-name">广告指标图 ({{controlState.mode === 'Global' ? '全局' : '定向组合限定'}})</span>
+      <span class="view-name">广告源信息分布图 ({{controlState.mode === 'Global' ? '全局' : '定向组合限定'}})</span>
       <el-dropdown trigger="click" @command="handleTypeClick">
         <el-button type="text">{{typeStr}}维度</el-button>
         <el-dropdown-menu slot="dropdown">

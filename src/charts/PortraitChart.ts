@@ -101,7 +101,6 @@ export default class PortraitChart {
     }
 
     loadData(data: any[], targets: TargetingInfo[], index: string, activeId: null | TargetingInfo, filteredIds: TargetingInfo[] | null) {
-
         this.data = data;
         this.data = this.data;
         this.targets = targets;

@@ -213,6 +213,9 @@ export default class App extends Vue {
     let projectLastPartition = moment;
   }
 
+  @Action("loadCrowdLocation")
+  loadCrowdLocation(payload: any) {}
+
   @Getter("types/types")
   types!: Types;
 
@@ -244,15 +247,22 @@ export default class App extends Vue {
     Bus.$on("select-cmb", (message: any) => {
       this.currentState.selectedCmb = message;
     });
+    Bus.$on("get-crowd-location", (message: string[]) => {});
     // 用于监听详情模式事件
-    Bus.$on("get-detail", (adgroupids: string) => {
+    Bus.$on("get-detail", (message: string[]) => {
       this.loadDetailState(
         Object.assign({
           globalFilter: JSON.stringify(this.currentGlobalFilter),
-          ids: this.currentState.targets.map((item: any) => item.id),
-          adgroupids
+          pattern: message
         })
       );
+    });
+    Bus.$on("get-crowd-location", (message: string) => {
+      this.loadCrowdLocation({
+        ids: this.currentState.targets.map((t: any) => Object.assign({}, t)),
+        filter: JSON.stringify(defaultGlobalFilter),
+        pattern: message
+      });
     });
     // 改变了全局筛选条件
     // 需要创建新的请求

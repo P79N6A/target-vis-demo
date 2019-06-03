@@ -27,7 +27,6 @@
       </el-table>
       <el-pagination
         :current-page.sync="currentPage"
-        :current-change="handlePageChange"
         background
         :page-size="pageSize"
         :total="dataLength"

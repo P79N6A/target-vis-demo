@@ -45,10 +45,12 @@ export function getTreeNodes(root: TargetingTreeNode, targets: TargetingInfo[], 
 export function getInitTargetingIds(tree: TargetingTreeNode, freqLimit: any, filters: string[] = ['6', '7', '8']) {
     let ids: any[] = [];
     let freq = freqLimit.freq;
+    let [lower, upper] = freq;
+    upper = upper === 'MAX' ? Number.MAX_SAFE_INTEGER : upper;
     tree.children.forEach((node: any) => {
         node.children.forEach((n: any) => {
             let tmpTarget = Object.assign({ cost: n.cost, freq: n.freq, level: n.level, parentId: n.parentId, id: n.id, name: n.name });
-            if ((tmpTarget.freq < freq.lower || n.freq > freq.upper) || filters.indexOf(tmpTarget.parentId) !== -1) tmpTarget.selected = false;
+            if ((tmpTarget.freq < lower || n.freq > upper) || filters.indexOf(tmpTarget.parentId) !== -1) tmpTarget.selected = false;
             else tmpTarget.selected = true;
             ids.push(tmpTarget);
         });
@@ -75,6 +77,8 @@ export function getTargets(tree: TargetingTreeNode, ids: string[]) {
 
 export function getNextLevelTargets(template: TargetingTreeNode, parentId: string, globalFilter: any) {
     let freq = globalFilter.freq;
+    let [lower, upper] = freq;
+    upper = upper === 'MAX' ? Number.MAX_SAFE_INTEGER : upper;
     let root = template.children.find((t) => t.id === parentId[0]);
     let len = 1;
     while (root != null && root.id != parentId) {
@@ -85,7 +89,7 @@ export function getNextLevelTargets(template: TargetingTreeNode, parentId: strin
 
     return root.children.map(r => {
         let tmp = Object.assign({ parentId: r.parentId, id: r.id, name: r.name, level: r.level, freq: r.freq, cost: r.cost });
-        if (tmp.freq < freq.lower || tmp.freq > freq.upper) tmp.selected = false;
+        if (tmp.freq < lower || tmp.freq > upper) tmp.selected = false;
         else tmp.selected = true;
         return tmp;
     });
@@ -94,16 +98,14 @@ export function getNextLevelTargets(template: TargetingTreeNode, parentId: strin
 export function filter2Form(str: string, types: any) {
     let filter = JSON.parse(str);
     let realForm: any = {};
-    realForm.timeRange = [];
-    realForm.timeRange[0] = filter.timeRange[0];
-    realForm.timeRange[1] = filter.timeRange[1];
-    let { upper, lower } = filter.ctr;
-    [filter.ctr.lower, filter.ctr.upper] = [lower * 100, upper * 100];
+    let [lower, upper,] = filter.ctr;
+    filter.ctr = [lower * 100, upper * 100];
     let keyGroup1 = ['click', 'cost', 'expo', 'ecpm', 'cpc', 'ctr', 'freq'];
     keyGroup1.forEach((key: string) => {
-        realForm[key] = {};
-        let { upper, lower } = filter[key];
-        [realForm[key].lower, realForm[key].upper] = [+lower, +upper];
+        realForm[key] = []
+        let [lower, upper] = filter[key];
+        upper === 'MAX' ? upper : +upper;
+        realForm[key] = [+lower, upper];
     });
     let map: any = {
         'site_set': 'siteSet',
@@ -130,16 +132,16 @@ export function filter2Form(str: string, types: any) {
 }
 
 export function form2Filter(form: any, types: any) {
-    let timeRange = form.timeRange;
     let realFilter: any = {};
-    realFilter.timeRange = [form.timeRange[0], form.timeRange[1]];
-    let { lower, upper } = form.ctr;
-    [form.ctr.lower, form.ctr.upper] = [+parseFloat((lower / 100) + "").toFixed(2), +parseFloat((upper / 100) + "").toFixed(2)];
+
+    let [lower, upper,] = form.ctr;
+    form.ctr = [+parseFloat((lower / 100) + "").toFixed(2), +parseFloat((upper / 100) + "").toFixed(2)];
     let keyGroup1 = ['click', 'ctr', 'cpc', 'expo', 'cost', 'ecpm', 'freq'];
     keyGroup1.forEach((key: string) => {
-        realFilter[key] = {};
-        let { upper, lower } = form[key];
-        [realFilter[key].lower, realFilter[key].upper] = [+lower, +upper];
+        realFilter[key] = []
+        let [lower, upper,] = form[key];
+        upper = upper === 'MAX' ? upper : +upper;
+        realFilter[key] = [+lower, upper];
     });
     let keyGroup2 = ['siteSet', 'industry', 'platform', 'prodType'];
     let map: any = {
@@ -169,29 +171,6 @@ export function form2Filter(form: any, types: any) {
  */
 export function transformPostData(globalFilter: FilterForm, types: Types) {
     let filter: any = globalFilter;
-    if (globalFilter.siteSet != null && globalFilter.siteSet.length !== 0)
-        filter.site_set = globalFilter.siteSet.map(s => {
-            let index: number = types.siteSet.findIndex(item => item.label === s);
-            return types.siteSet[index].value;
-        });
-
-    // if (globalFilter.platform != null && globalFilter.platform.length !== 0)
-    //     filter.ad_platform_type = globalFilter.platform.map(p => {
-    //         let index: number = types.platform.findIndex(item => item.label === p);
-    //         return types.platform[index].value;
-    //     });
-
-    // if (globalFilter.prodType != null && globalFilter.prodType.length !== 0)
-    //     filter.product_type = globalFilter.prodType.map(p => {
-    //         let index: number = types.prodType.findIndex(item => item.label === p);
-    //         return types.prodType[index].value;
-    //     });
-
-    // if (globalFilter.industry != null && globalFilter.industry.length !== 0)
-    //     filter.industry_id = globalFilter.industry.map(p => {
-    //         let index: number = types.industry.findIndex(item => item.label === p);
-    //         return types.industry[index].value;
-    //     });
     return filter;
 }
 
